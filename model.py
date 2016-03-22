@@ -7,8 +7,8 @@ from ops import *
 from utils import *
 
 class DCGAN(object):
-    def __init__(self, sess, image_size=108, is_crop=True,
-                 batch_size=64, sample_size = 64, image_shape=[64, 64, 3],
+    def __init__(self, sess, wav_size=441, is_crop=True,
+                 batch_size=64, sample_size = 64, wav_shape=[441, 1],
                  y_dim=None, z_dim=100, gf_dim=64, df_dim=64,
                  gfc_dim=1024, dfc_dim=1024, c_dim=3, dataset_name='default',
                  checkpoint_dir=None):
@@ -23,14 +23,14 @@ class DCGAN(object):
             df_dim: (optional) Dimension of discrim filters in first conv layer. [64]
             gfc_dim: (optional) Dimension of gen untis for for fully connected layer. [1024]
             dfc_dim: (optional) Dimension of discrim units for fully connected layer. [1024]
-            c_dim: (optional) Dimension of image color. [3]
+            c_dim: (optional) Dimension of wav color. [3]
         """
         self.sess = sess
         self.is_crop = is_crop
         self.batch_size = batch_size
-        self.image_size = image_size
+        self.wav_size = wav_size
         self.sample_size = sample_size
-        self.image_shape = image_shape
+        self.wav_shape = wav_shape
 
         self.y_dim = y_dim
         self.z_dim = z_dim
@@ -65,24 +65,23 @@ class DCGAN(object):
         if self.y_dim:
             self.y= tf.placeholder(tf.float32, [None, self.y_dim], name='y')
 
-        self.images = tf.placeholder(tf.float32, [self.batch_size] + self.image_shape,
-                                    name='real_images')
-        self.sample_images= tf.placeholder(tf.float32, [self.sample_size] + self.image_shape,
-                                        name='sample_images')
+        self.wavs = tf.placeholder(tf.float32, [self.batch_size] + self.wav_shape,
+                                    name='real_wavs')
+        self.sample_wavs= tf.placeholder(tf.float32, [self.sample_size] + self.wav_shape,
+                                        name='sample_wavs')
         self.z = tf.placeholder(tf.float32, [None, self.z_dim],
                                 name='z')
 
         self.z_sum = tf.histogram_summary("z", self.z)
 
         self.G = self.generator(self.z)
-        self.D = self.discriminator(self.images)
+        self.D = self.discriminator(self.wavs)
 
         self.sampler = self.sampler(self.z)
         self.D_ = self.discriminator(self.G, reuse=True)
 
         self.d_sum = tf.histogram_summary("d", self.D)
         self.d__sum = tf.histogram_summary("d_", self.D_)
-        self.G_sum = tf.image_summary("G", self.G)
 
         self.d_loss_real = binary_cross_entropy_with_logits(tf.ones_like(self.D), self.D)
         self.d_loss_fake = binary_cross_entropy_with_logits(tf.zeros_like(self.D_), self.D_)
@@ -116,14 +115,14 @@ class DCGAN(object):
 
         self.saver = tf.train.Saver()
         self.g_sum = tf.merge_summary([self.z_sum, self.d__sum, 
-            self.G_sum, self.d_loss_fake_sum, self.g_loss_sum])
+            self.d_loss_fake_sum, self.g_loss_sum])
         self.d_sum = tf.merge_summary([self.z_sum, self.d_sum, self.d_loss_real_sum, self.d_loss_sum])
         self.writer = tf.train.SummaryWriter("./logs", self.sess.graph_def)
 
         sample_z = np.random.uniform(-1, 1, size=(self.sample_size , self.z_dim))
         sample_files = data[0:self.sample_size]
-        sample = [get_image(sample_file, self.image_size, is_crop=self.is_crop) for sample_file in sample_files]
-        sample_images = np.array(sample).astype(np.float32)
+        sample = [get_wav(sample_file, self.wav_size, is_crop=self.is_crop) for sample_file in sample_files]
+        sample_wavs = np.array(sample).astype(np.float32)
 
         counter = 1
         start_time = time.time()
@@ -139,15 +138,15 @@ class DCGAN(object):
 
             for idx in xrange(0, batch_idxs):
                 batch_files = data[idx*config.batch_size:(idx+1)*config.batch_size]
-                batch = [get_image(batch_file, self.image_size, is_crop=self.is_crop) for batch_file in batch_files]
-                batch_images = np.array(batch).astype(np.float32)
+                batch = [get_wav(batch_file, self.wav_size, is_crop=self.is_crop) for batch_file in batch_files]
+                batch_wavs = np.array(batch).astype(np.float32)
 
                 batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
                             .astype(np.float32)
 
                 # Update D network
                 _, summary_str = self.sess.run([d_optim, self.d_sum],
-                    feed_dict={ self.images: batch_images, self.z: batch_z })
+                    feed_dict={ self.wavs: batch_wavs, self.z: batch_z })
                 self.writer.add_summary(summary_str, counter)
 
                 # Update G network
@@ -161,7 +160,7 @@ class DCGAN(object):
                 self.writer.add_summary(summary_str, counter)
 
                 errD_fake = self.d_loss_fake.eval({self.z: batch_z})
-                errD_real = self.d_loss_real.eval({self.images: batch_images})
+                errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
                 errG = self.g_loss.eval({self.z: batch_z})
 
                 counter += 1
@@ -172,21 +171,21 @@ class DCGAN(object):
                 if np.mod(counter, 100) == 1:
                     samples, d_loss, g_loss = self.sess.run(
                         [self.sampler, self.d_loss, self.g_loss],
-                        feed_dict={self.z: sample_z, self.images: sample_images}
+                        feed_dict={self.z: sample_z, self.wavs: sample_wavs}
                     )
-                    save_images(samples, [8, 8],
+                    save_wavs(samples, [8, 8],
                                 './samples/train_%s_%s.png' % (epoch, idx))
                     print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
 
                 if np.mod(counter, 500) == 2:
                     self.save(config.checkpoint_dir, counter)
 
-    def discriminator(self, image, reuse=False, y=None):
+    def discriminator(self, wav, reuse=False, y=None):
         if reuse:
             tf.get_variable_scope().reuse_variables()
 
         if not self.y_dim:
-            h0 = lrelu(conv2d(image, self.df_dim, name='d_h0_conv'))
+            h0 = lrelu(conv2d(wav, self.df_dim, name='d_h0_conv'))
             h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
             h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
             h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
@@ -195,7 +194,7 @@ class DCGAN(object):
             return tf.nn.sigmoid(h4)
         else:
             yb = tf.reshape(y, [None, 1, 1, self.y_dim])
-            x = conv_cond_concat(image, yb)
+            x = conv_cond_concat(wav, yb)
 
             h0 = lrelu(spatial_conv(x, self.c_dim + self.y_dim))
             h0 = conv_cond_concat(h0, yb)
