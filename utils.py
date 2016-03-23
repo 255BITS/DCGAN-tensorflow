@@ -19,6 +19,7 @@ get_stddev = lambda x, k_h, k_w: 1/math.sqrt(k_w*k_h*x.get_shape()[-1])
 PADVALUE=-123
 
 def get_wav(wav_path, wav_size, is_crop=True):
+    print("Loading wav ", wav_path)
     wavobj = loadfft(wav_path)
     height = WAV_HEIGHT
     wav = wavobj
@@ -27,14 +28,16 @@ def get_wav(wav_path, wav_size, is_crop=True):
     padamount = (wav_size*height)-(len(wav)%(wav_size*height))
     
     wav += [[PADVALUE,PADVALUE,1] for i in range(0,padamount)]
-    print(np.shape(wav))
 
     wav = np.reshape(wav, [-1, wav_size,height,3])
     wav = np.array(wav)
+    print(np.shape(wav))
     return np.array(wav)
 
 
 def save_wav(wav, size, wav_path):
+    print(wav)
+    print("Saved to ", wav_path)
     linearwav = np.reshape(wav, [-1,3])
     complexwav=[]
     for i in linearwav:
@@ -173,9 +176,9 @@ def visualize(sess, dcgan, config, option):
   if option == 0:
     z_sample = np.random.uniform(-0.5, 0.5, size=(config.batch_size, dcgan.z_dim))
     samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
-    save_wavs(samples, [8, 8], './samples/test_%s.png' % strftime("%Y-%m-%d %H:%M:%S", gmtime()))
+    save_wav(samples, 64, './samples/test.wav' )
   elif option == 1:
-    values = np.arange(0, 1, 1./config.batch_size)
+    values = np.arange(0, 1, 1./config.batch_si)
     for idx in range(100):
       print(" [*] %d" % idx)
       z_sample = np.zeros([config.batch_size, dcgan.z_dim])
@@ -183,7 +186,7 @@ def visualize(sess, dcgan, config, option):
         z[idx] = values[kdx]
 
       samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
-      save_wavs(samples, [8, 8], './samples/test_arange_%s.png' % (idx))
+      save_wav(samples, 64, './samples/test_arange_%s.wav' % (idx))
   elif option == 2:
     values = np.arange(0, 1, 1./config.batch_size)
     for idx in [random.randint(0, 99) for _ in range(100)]:

@@ -39,7 +39,6 @@ def main(_):
             print("TRAIN TIME")
             dcgan.train(FLAGS)
         else:
-            print("LOAD TIME")
             dcgan.load(FLAGS.checkpoint_dir)
 
         to_json("./web/js/layers.js", [dcgan.h0_w, dcgan.h0_b, dcgan.g_bn0],
@@ -49,7 +48,7 @@ def main(_):
                                       [dcgan.h4_w, dcgan.h4_b, None])
 
         # Below is codes for visualization
-        OPTION = 2
+        OPTION = 0
         visualize(sess, dcgan, FLAGS, OPTION)
 
 if __name__ == '__main__':
