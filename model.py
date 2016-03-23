@@ -150,7 +150,6 @@ class DCGAN(object):
             for batch_item in get_wav_content(batch_files):
                 batch_item = batch_item[:int(len(batch_item)/64)*64]
                 batch_wavs_multiple = batch_item.reshape([-1, 64, 64,64,3])
-                print("batch wavs multiple", batch_wavs_multiple)
                 batch_idxs+=1
                 for i, batch_wavs in enumerate(batch_wavs_multiple):
                     if(len(batch_wavs)!=64):

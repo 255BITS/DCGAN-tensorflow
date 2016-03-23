@@ -8,6 +8,7 @@ import pprint
 import scipy.misc
 import numpy as np
 from time import gmtime, strftime
+from cmath import polar
 
 from wav import *
 
@@ -18,13 +19,31 @@ get_stddev = lambda x, k_h, k_w: 1/math.sqrt(k_w*k_h*x.get_shape()[-1])
 
 PADVALUE=-123
 
+
+def represent(complexx):
+    magnitude = abs(1/complexx)
+    norm_i = complexx.real*magnitude
+    norm_j = complexx.imag*magnitude
+    return [norm_i, norm_j, magnitude]
+
+def decode(i):
+    magnitude = i[2]
+    c_i = i[0]/magnitude
+    c_j = i[1]/magnitude
+    return complex(c_i, c_j)
+
 def get_wav(wav_path, wav_size, is_crop=True):
     print("Loading wav ", wav_path)
     wavobj = loadfft(wav_path)
     height = WAV_HEIGHT
     wav = wavobj
 
-    wav = [[complexx.real, complexx.imag, 1] for complexx in wavobj['raw']]
+    #wav = [[cmcomplexx.real, complexx.imag, abs(complexx)] for complexx in wavobj['raw']]
+    wav = [ 
+       represent(complexx) for complexx in wavobj['raw']
+            ]
+    wav = [r for r in wav if (r[2]>1e-7)]
+
     padamount = (wav_size*height)-(len(wav)%(wav_size*height))
     
     wav += [[PADVALUE,PADVALUE,1] for i in range(0,padamount)]
@@ -40,8 +59,9 @@ def save_wav(wav, size, wav_path):
     complexwav=[]
     for i in linearwav:
         if(i[0] != PADVALUE or i[1] != PADVALUE):
-            print(i[0], i[1], i[2])
-            complexwav += [complex(i[0],i[1])]
+            #print(i[0], i[1], i[2])
+
+            complexwav += [decode(i)]
     complexwav = np.array(complexwav).reshape([-1])
 
     output = ifft(np.array(complexwav))

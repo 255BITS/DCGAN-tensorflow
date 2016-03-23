@@ -64,7 +64,7 @@ def conv2d(input_, output_dim,
                             initializer=tf.truncated_normal_initializer(stddev=stddev))
         conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME')
 
-        biases = tf.get_variable('biases', [output_dim], initializer=tf.constant_initializer(0.0))
+        biases = tf.get_variable('biases', [output_dim], initializer=tf.constant_initializer(0.5))
         conv = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape())
 
         return conv
@@ -86,7 +86,7 @@ def deconv2d(input_, output_shape,
             deconv = tf.nn.deconv2d(input_, w, output_shape=output_shape,
                                 strides=[1, d_h, d_w, 1])
 
-        biases = tf.get_variable('biases', [output_shape[-1]], initializer=tf.constant_initializer(0.0))
+        biases = tf.get_variable('biases', [output_shape[-1]], initializer=tf.constant_initializer(0.5))
         deconv = tf.reshape(tf.nn.bias_add(deconv, biases), deconv.get_shape())
 
         if with_w:
@@ -94,13 +94,13 @@ def deconv2d(input_, output_shape,
         else:
             return deconv
 
-def lrelu(x, leak=0.2, name="lrelu"):
+def lrelu(x, leak=0.1, name="lrelu"):
     with tf.variable_scope(name):
         f1 = 0.5 * (1 + leak)
         f2 = 0.5 * (1 - leak)
         return f1 * x + f2 * abs(x)
 
-def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=False):
+def linear(input_, output_size, scope=None, stddev=0.2, bias_start=0.5, with_w=False):
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "Linear"):
