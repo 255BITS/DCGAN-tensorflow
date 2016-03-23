@@ -16,23 +16,23 @@ get_stddev = lambda x, k_h, k_w: 1/math.sqrt(k_w*k_h*x.get_shape()[-1])
 
 def get_wav(wav_path, wav_size, is_crop=True):
     wavobj = loadfft(wav_path)
-    height = 8
+    height = 100
     wav = wavobj
 
-    wav = [[complexx.real, complexx.imag] for complexx in wavobj['raw']]
-    wav = np.reshape(wav, [-1, wav_size,height,2])
+    wav = [[complexx.real, complexx.imag, 1] for complexx in wavobj['raw']]
+    wav = np.reshape(wav, [-1, wav_size,height,3])
     wav = np.array(wav)
-    return wav, wavobj['raw']
+    return wav
 
 
 def save_wav(wav, size, wav_path):
-    linearwav = np.reshape(wav, [-1,2])
+    linearwav = np.reshape(wav, [-1,3])
     complexwav = [complex(i[0],i[1]) for i in linearwav]
     complexwav = np.array(complexwav).reshape([-1])
     output = ifft(np.array(complexwav))
     uintout = output.astype('int16')
     scipy.io.wavfile.write(wav_path, 44100, uintout)
-    return linearwav, uintout
+    return linearwav
 
 def imread(path):
     return scipy.misc.imread(path).astype(np.float)

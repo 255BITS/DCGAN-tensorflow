@@ -8,7 +8,7 @@ from utils import *
 
 class DCGAN(object):
     def __init__(self, sess, wav_size=441, is_crop=True,
-                 batch_size=64, sample_size = 64, wav_shape=[441, 1],
+                 batch_size=64, sample_size = 64, wav_shape=[441, 100, 3],
                  y_dim=None, z_dim=100, gf_dim=64, df_dim=64,
                  gfc_dim=1024, dfc_dim=1024, c_dim=3, dataset_name='default',
                  checkpoint_dir=None):
@@ -133,10 +133,11 @@ class DCGAN(object):
             print(" [!] Load failed...")
 
         for epoch in xrange(config.epoch):
-            data = glob(os.path.join("./data", config.dataset, "*.jpg"))
+            data = glob(os.path.join("./training", "*.wav"))
             batch_idxs = min(len(data), config.train_size)/config.batch_size
 
             for idx in xrange(0, batch_idxs):
+                print("training", [batch_file in batch_files])
                 batch_files = data[idx*config.batch_size:(idx+1)*config.batch_size]
                 batch = [get_wav(batch_file, self.wav_size, is_crop=self.is_crop) for batch_file in batch_files]
                 batch_wavs = np.array(batch).astype(np.float32)
