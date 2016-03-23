@@ -152,21 +152,22 @@ def to_json(output_path, *layers):
         layer_f.write(" ".join(lines.replace("'","").split()))
 
 def make_gif(wavs, fname, duration=2, true_wav=False):
-  import moviepy.editor as mpy
+  return
+  #import moviepy.editor as mpy
 
-  def make_frame(t):
-    try:
-      x = wavs[int(len(wavs)/duration*t)]
-    except:
-      x = wavs[-1]
+  #def make_frame(t):
+  #  try:
+  #    x = wavs[int(len(wavs)/duration*t)]
+  #  except:
+  #    x = wavs[-1]
 
-    if true_wav:
-      return x.astype(np.uint8)
-    else:
-      return ((x+1)/2*255).astype(np.uint8)
+  #  if true_wav:
+  #    return x.astype(np.uint8)
+  #  else:
+  #    return ((x+1)/2*255).astype(np.uint8)
 
-  clip = mpy.VideoClip(make_frame, duration=duration)
-  clip.write_gif(fname, fps = len(wavs) / duration)
+  #clip = mpy.VideoClip(make_frame, duration=duration)
+  #clip.write_gif(fname, fps = len(wavs) / duration)
 
 def visualize(sess, dcgan, config, option):
   if option == 0:
