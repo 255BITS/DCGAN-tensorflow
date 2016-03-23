@@ -22,7 +22,10 @@ def get_wav(wav_path, wav_size, is_crop=True):
     wav = wavobj
 
     wav = [[complexx.real, complexx.imag, 1] for complexx in wavobj['raw']]
-    print(np.shape(wav))
+    trimamount = len(wav)%(wav_size*height)
+    endsize = len(wav)-trimamount
+    wav = wav[0:endsize]
+
     wav = np.reshape(wav, [-1, wav_size,height,3])
     wav = np.array(wav)
     return np.array(wav)
@@ -32,6 +35,7 @@ def save_wav(wav, size, wav_path):
     linearwav = np.reshape(wav, [-1,3])
     complexwav = [complex(i[0],i[1]) for i in linearwav]
     complexwav = np.array(complexwav).reshape([-1])
+
     output = ifft(np.array(complexwav))
     uintout = output.astype('int16')
     scipy.io.wavfile.write(wav_path, 44100, uintout)

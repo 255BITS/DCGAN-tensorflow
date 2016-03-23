@@ -13,6 +13,6 @@ wav_size=441
 
 wav= get_wav(wav_path, wav_size, is_crop=True)
 
-#print("WAV IS", wav)
+print("WAV IS", wav)
 
 res= save_wav(wav, wav_size, "sanity.wav")
