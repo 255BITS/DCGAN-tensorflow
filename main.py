@@ -36,8 +36,10 @@ def main(_):
                     dataset_name=FLAGS.dataset, is_crop=FLAGS.is_crop, checkpoint_dir=FLAGS.checkpoint_dir)
 
         if FLAGS.is_train:
+            print("TRAIN TIME")
             dcgan.train(FLAGS)
         else:
+            print("LOAD TIME")
             dcgan.load(FLAGS.checkpoint_dir)
 
         to_json("./web/js/layers.js", [dcgan.h0_w, dcgan.h0_b, dcgan.g_bn0],

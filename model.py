@@ -6,12 +6,14 @@ import tensorflow as tf
 from ops import *
 from utils import *
 
+WAV_SIZE=64
+WAV_HEIGHT=64
 class DCGAN(object):
-    def __init__(self, sess, wav_size=441, is_crop=True,
-                 batch_size=64, sample_size = 64, wav_shape=[441, 100, 3],
+    def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
+                 batch_size=64, sample_size = 64, wav_shape=[WAV_SIZE, WAV_HEIGHT, 3],
                  y_dim=None, z_dim=100, gf_dim=64, df_dim=64,
                  gfc_dim=1024, dfc_dim=1024, c_dim=3, dataset_name='default',
-                 checkpoint_dir=None):
+                 checkpoint_dir='checkpoint'):
         """
 
         Args:
@@ -75,6 +77,7 @@ class DCGAN(object):
         self.z_sum = tf.histogram_summary("z", self.z)
 
         self.G = self.generator(self.z)
+        print("G is", self.G.get_shape())
         self.D = self.discriminator(self.wavs)
 
         self.sampler = self.sampler(self.z)
@@ -111,7 +114,6 @@ class DCGAN(object):
                           .minimize(self.d_loss, var_list=self.d_vars)
         g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
                           .minimize(self.g_loss, var_list=self.g_vars)
-        tf.initialize_all_variables().run()
 
         self.saver = tf.train.Saver()
         self.g_sum = tf.merge_summary([self.z_sum, self.d__sum, 
@@ -126,19 +128,21 @@ class DCGAN(object):
 
         counter = 1
         start_time = time.time()
+        tf.initialize_all_variables().run()
 
         if self.load(self.checkpoint_dir):
             print(" [*] Load SUCCESS")
         else:
             print(" [!] Load failed...")
+        print('epoch', config.epoch)
 
-        for epoch in xrange(config.epoch):
+        for epoch in range(config.epoch):
             data = glob(os.path.join("./training", "*.wav"))
             batch_idxs = min(len(data), config.train_size)/config.batch_size
 
-            for idx in xrange(0, batch_idxs):
-                print("training", [batch_file in batch_files])
+            for idx in range(0, int(batch_idxs)):
                 batch_files = data[idx*config.batch_size:(idx+1)*config.batch_size]
+                print("training", [batch_file for batch_file in batch_files])
                 batch = [get_wav(batch_file, self.wav_size, is_crop=self.is_crop) for batch_file in batch_files]
                 batch_wavs = np.array(batch).astype(np.float32)
 
@@ -190,6 +194,7 @@ class DCGAN(object):
             h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
             h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
             h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+            print("get shape h3", wav.get_shape(), h3.get_shape())
             h4 = linear(tf.reshape(h3, [self.batch_size, -1]), 1, 'd_h3_lin')
 
             return tf.nn.sigmoid(h4)
@@ -206,6 +211,7 @@ class DCGAN(object):
 
             h2 = lrelu(self.d_bn2(linear(h1, self.dfc_dim, 'd_h2_lin')))
             h2 = tf.concat(1, [h2, y])
+            print('shape', h2.get_shape())
 
             return tf.nn.sigmoid(linear(h2, 1, 'd_h3_lin'))
 
@@ -230,7 +236,7 @@ class DCGAN(object):
             h3 = tf.nn.relu(self.g_bn3(h3))
 
             h4, self.h4_w, self.h4_b = deconv2d(h3,
-                [self.batch_size, 64, 64, 3], name='g_h4', with_w=True)
+                [self.batch_size, WAV_SIZE, WAV_HEIGHT, 3], name='g_h4', with_w=True)
 
             return tf.nn.tanh(h4)
         else:
@@ -306,8 +312,10 @@ class DCGAN(object):
 
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
         if ckpt and ckpt.model_checkpoint_path:
+            print("TRUE")
             ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
             self.saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))
             return True
         else:
+            print("FALSE")
             return False

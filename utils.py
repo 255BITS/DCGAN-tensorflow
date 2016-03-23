@@ -10,19 +10,22 @@ import numpy as np
 from time import gmtime, strftime
 
 from wav import *
+
+WAV_HEIGHT=64
 pp = pprint.PrettyPrinter()
 
 get_stddev = lambda x, k_h, k_w: 1/math.sqrt(k_w*k_h*x.get_shape()[-1])
 
 def get_wav(wav_path, wav_size, is_crop=True):
     wavobj = loadfft(wav_path)
-    height = 100
+    height = WAV_HEIGHT
     wav = wavobj
 
     wav = [[complexx.real, complexx.imag, 1] for complexx in wavobj['raw']]
+    print(np.shape(wav))
     wav = np.reshape(wav, [-1, wav_size,height,3])
     wav = np.array(wav)
-    return wav
+    return np.array(wav)
 
 
 def save_wav(wav, size, wav_path):
