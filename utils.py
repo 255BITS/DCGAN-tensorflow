@@ -16,6 +16,8 @@ pp = pprint.PrettyPrinter()
 
 get_stddev = lambda x, k_h, k_w: 1/math.sqrt(k_w*k_h*x.get_shape()[-1])
 
+PADVALUE=-123
+
 def get_wav(wav_path, wav_size, is_crop=True):
     wavobj = loadfft(wav_path)
     height = WAV_HEIGHT
@@ -24,7 +26,8 @@ def get_wav(wav_path, wav_size, is_crop=True):
     wav = [[complexx.real, complexx.imag, 1] for complexx in wavobj['raw']]
     trimamount = len(wav)%(wav_size*height)
     endsize = len(wav)-trimamount
-    wav = wav[0:endsize]
+    
+    wav += [[PADVALUE,PADVALUE,1] for i in range(endsize)]
 
     wav = np.reshape(wav, [-1, wav_size,height,3])
     wav = np.array(wav)
@@ -33,7 +36,10 @@ def get_wav(wav_path, wav_size, is_crop=True):
 
 def save_wav(wav, size, wav_path):
     linearwav = np.reshape(wav, [-1,3])
-    complexwav = [complex(i[0],i[1]) for i in linearwav]
+    complexwav=[]
+    for i in linearwav:
+        if(i[0] != PADVALUE and i[1] != PADVALUE):
+            complexwav += [complex(i[0],i[1])]
     complexwav = np.array(complexwav).reshape([-1])
 
     output = ifft(np.array(complexwav))
