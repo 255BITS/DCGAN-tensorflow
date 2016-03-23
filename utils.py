@@ -24,10 +24,10 @@ def get_wav(wav_path, wav_size, is_crop=True):
     wav = wavobj
 
     wav = [[complexx.real, complexx.imag, 1] for complexx in wavobj['raw']]
-    trimamount = len(wav)%(wav_size*height)
-    endsize = len(wav)-trimamount
+    padamount = (wav_size*height)-(len(wav)%(wav_size*height))
     
-    wav += [[PADVALUE,PADVALUE,1] for i in range(endsize)]
+    wav += [[PADVALUE,PADVALUE,1] for i in range(0,padamount)]
+    print(np.shape(wav))
 
     wav = np.reshape(wav, [-1, wav_size,height,3])
     wav = np.array(wav)
@@ -38,7 +38,7 @@ def save_wav(wav, size, wav_path):
     linearwav = np.reshape(wav, [-1,3])
     complexwav=[]
     for i in linearwav:
-        if(i[0] != PADVALUE and i[1] != PADVALUE):
+        if(i[0] != PADVALUE or i[1] != PADVALUE):
             complexwav += [complex(i[0],i[1])]
     complexwav = np.array(complexwav).reshape([-1])
 

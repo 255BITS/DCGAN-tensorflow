@@ -9,7 +9,7 @@
 from utils import *
 
 wav_path="training/02-overworld-01.wav"
-wav_size=441
+wav_size=64
 
 wav= get_wav(wav_path, wav_size, is_crop=True)
 
