@@ -36,18 +36,19 @@ def get_wav(wav_path, wav_size, is_crop=True):
 
 
 def save_wav(wav, size, wav_path):
-    print(wav)
-    print("Saved to ", wav_path)
     linearwav = np.reshape(wav, [-1,3])
     complexwav=[]
     for i in linearwav:
         if(i[0] != PADVALUE or i[1] != PADVALUE):
+            print(i[0], i[1], i[2])
             complexwav += [complex(i[0],i[1])]
     complexwav = np.array(complexwav).reshape([-1])
 
     output = ifft(np.array(complexwav))
     uintout = output.astype('int16')
+    print("Writing:", complexwav)
     scipy.io.wavfile.write(wav_path, 44100, uintout)
+    print("Saved to ", wav_path)
     return linearwav
 
 def imread(path):

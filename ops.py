@@ -104,7 +104,6 @@ def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "Linear"):
-        print('shapes', shape, output_size)
         matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,
                                  tf.random_normal_initializer(stddev=stddev))
         bias = tf.get_variable("bias", [output_size],

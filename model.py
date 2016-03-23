@@ -137,66 +137,63 @@ class DCGAN(object):
         print('epoch', config.epoch)
 
         for epoch in range(config.epoch):
-            data = glob(os.path.join("./training", "*.wav"))
-            batch_idxs = min(len(data), config.train_size)/config.batch_size
-            if(batch_idxs <1):
-                batch_idxs = 1
-            print("BATCH IDX", batch_idxs);
+            batch_files = glob(os.path.join("./training", "*.wav"))
 
-            for idx in range(0, int(batch_idxs)):
-                print("data is", idx)
-                print(data)
-                batch_files = data[idx*config.batch_size:(idx+1)*config.batch_size]
-                print("batch files", batch_files)
-                print("training", [batch_file for batch_file in batch_files])
-                batch = [get_wav(batch_file, self.wav_size, is_crop=self.is_crop) for batch_file in batch_files]
-                #print(batch)
-                batch = np.array(batch)
-                print("batch is ", len(batch))
-                for batch_item in batch:
-                    batch_item = batch_item[:int(len(batch_item)/64)*64]
-                    batch_wavs_multiple = batch_item.reshape([-1, 64, 64,64,3])
-                    print("batch wavs multiple", batch_wavs_multiple)
-                    for i, batch_wavs in enumerate(batch_wavs_multiple):
-                        print(batch_wavs)
-                        batch_wavs = np.array(batch_wavs)
-                        batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
-                                    .astype(np.float32)
+            def get_wav_content(files):
+                for filee in files:
+                    print("Yielding ", filee)
+                    yield get_wav(filee, self.wav_size, is_crop=self.is_crop)
 
-                        # Update D network
-                        _, summary_str = self.sess.run([d_optim, self.d_sum],
-                            feed_dict={ self.wavs: batch_wavs, self.z: batch_z })
-                        self.writer.add_summary(summary_str, counter)
+            #print(batch)
+            idx=0
+            batch_idxs=0
+            for batch_item in get_wav_content(batch_files):
+                batch_item = batch_item[:int(len(batch_item)/64)*64]
+                batch_wavs_multiple = batch_item.reshape([-1, 64, 64,64,3])
+                print("batch wavs multiple", batch_wavs_multiple)
+                batch_idxs+=1
+                for i, batch_wavs in enumerate(batch_wavs_multiple):
+                    if(len(batch_wavs)!=64):
+                        break
+                    idx+=1
+                    batch_wavs = np.array(batch_wavs)
+                    batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
+                                .astype(np.float32)
 
-                        # Update G network
-                        _, summary_str = self.sess.run([g_optim, self.g_sum],
-                            feed_dict={ self.z: batch_z })
-                        self.writer.add_summary(summary_str, counter)
+                    # Update D network
+                    _, summary_str = self.sess.run([d_optim, self.d_sum],
+                        feed_dict={ self.wavs: batch_wavs, self.z: batch_z })
+                    self.writer.add_summary(summary_str, counter)
 
-                        # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                        _, summary_str = self.sess.run([g_optim, self.g_sum],
-                            feed_dict={ self.z: batch_z })
-                        self.writer.add_summary(summary_str, counter)
+                    # Update G network
+                    _, summary_str = self.sess.run([g_optim, self.g_sum],
+                        feed_dict={ self.z: batch_z })
+                    self.writer.add_summary(summary_str, counter)
 
-                        errD_fake = self.d_loss_fake.eval({self.z: batch_z})
-                        errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
-                        errG = self.g_loss.eval({self.z: batch_z})
+                    # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
+                    _, summary_str = self.sess.run([g_optim, self.g_sum],
+                        feed_dict={ self.z: batch_z })
+                    self.writer.add_summary(summary_str, counter)
 
-                        counter += 1
-                        print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
-                            % (epoch, idx, batch_idxs,
-                                time.time() - start_time, errD_fake+errD_real, errG))
+                    errD_fake = self.d_loss_fake.eval({self.z: batch_z})
+                    errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
+                    errG = self.g_loss.eval({self.z: batch_z})
 
-                        if np.mod(counter, 100) == 1:
-                            samples, d_loss, g_loss = self.sess.run(
-                                [self.sampler, self.d_loss, self.g_loss],
-                                feed_dict={self.z: sample_z, self.wavs: sample_wavs}
-                            )
-                            save_wavs(samples, [8, 8],
-                                        './samples/train_%s_%s.png' % (epoch, idx))
-                            print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
+                    counter += 1
+                    print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
+                        % (epoch, idx, batch_idxs,
+                            time.time() - start_time, errD_fake+errD_real, errG))
 
-                        #if np.mod(counter, 500) == 2:
+                    if np.mod(counter, 100) == 1:
+                        samples, d_loss, g_loss = self.sess.run(
+                            [self.sampler, self.d_loss, self.g_loss],
+                            feed_dict={self.z: sample_z, self.wavs: sample_wavs}
+                        )
+                        save_wavs(samples, [8, 8],
+                                    './samples/train_%s_%s.png' % (epoch, idx))
+                        print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
+
+                    if np.mod(counter, 30) == 2:
                         self.save(config.checkpoint_dir, counter)
 
     def discriminator(self, wav, reuse=False, y=None):
@@ -208,7 +205,6 @@ class DCGAN(object):
             h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
             h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
             h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
-            print("get shape h3", wav.get_shape(), h3.get_shape())
             h4 = linear(tf.reshape(h3, [self.batch_size, -1]), 1, 'd_h3_lin')
 
             return tf.nn.sigmoid(h4)
