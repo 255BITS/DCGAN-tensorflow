@@ -11,8 +11,9 @@ def get_wav(sess, path):
     results['framerate']=wav.getframerate()
     results['nframes']=wav.getnframes()
     results['compname']=wav.getcompname()
-    results['data']=data
-    results['datacomplex64']=data.astype(complex, copy=False)
+    # process fft in tf
+    processed = data.astype(complex, copy=False)
+    results['data']=processed
     return results
 
 def save_wav(wav, path):
@@ -26,5 +27,6 @@ def save_wav(wav, path):
     wav.setnframes(wav.getnframes())
 
     wav.setcomptype(None, 'processed')
-
-    wav.writeframes(wav['data'])
+    processed = wav['data']
+    # process ifft in tf
+    wav.writeframes(processed)
