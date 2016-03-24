@@ -49,23 +49,23 @@ def compose(input):
     real = tf.real(input)
     imag = tf.imag(input)
     return tf.concat(3, [real, imag])
-def encode(input, inner_shape=[64,64,64,1], shape=[64,64,64,2]):
+def encode(input, inner_shape=[-1,64,64,1], shape=[-1,64,64,2]):
     output = input
     #output = tf.reshape(output, [-1, 64])
     output = tf.reshape(output, [-1])
-    output = tf.fft(output)
+    #output = tf.fft(output)
     #output = tf.fft2d(output)
     output = tf.reshape(output, inner_shape)
     output = compose(output)
     output = tf.reshape(output, shape)
     return output
-def decode(input, inner_shape=[64,64,64,2], shape=[64,64,64,1]):
+def decode(input, inner_shape=[-1,64,64,2], shape=[-1,64,64,1]):
     output = input
     output = tf.reshape(output, inner_shape)
     output = decompose(output)
     #output = tf.reshape(output, [-1, 64])
     output = tf.reshape(output, [-1])
-    output = tf.ifft(output)
+    #output = tf.ifft(output)
     #output = tf.ifft2d(output)
     print(output.get_shape())
     output = tf.reshape(output, shape)

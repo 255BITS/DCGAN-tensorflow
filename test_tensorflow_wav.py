@@ -21,7 +21,7 @@ with tf.Session() as sess:
     raw_data = tf.placeholder(tf.complex64, [len(wav['data'])])
 
     print("WAV IS", wav)
-    data = tf.reshape(raw_data[:64*64*64], [64,64,64,1])
+    data = tf.reshape(raw_data[:64*64], [-1,64,64,1])
     #data = tf.reshape(raw_data[:64*64*64], [-1])
     print("calling encoded")
     encoded = encode(data)
@@ -30,6 +30,7 @@ with tf.Session() as sess:
 
     noop = decoded
     #noop = encoded
+    print(len(wav['data']))
     wav['data'] = sess.run(noop, {raw_data: wav['data']})
     print('data is now', wav['data'])
     #wav['data'] = fft(ifft(wav['data']))
