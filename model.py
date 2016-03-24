@@ -77,11 +77,14 @@ class DCGAN(object):
         self.z_sum = tf.histogram_summary("z", self.z)
 
         self.G = self.generator(self.z)
+        #self.G = self.generator_wav(self.z)
         print("G is", self.G.get_shape())
         self.D = self.discriminator(self.wavs)
+        #self.D = self.discriminator_wav(self.wavs)
 
         self.sampler = self.sampler(self.z)
-        self.D_ = self.discriminator(self.G, reuse=True)
+        #self.D_ = self.discriminator(self.G, reuse=True)
+        self.D_ = self.discriminator_wav(self.G, reuse=True)
 
         self.d_sum = tf.histogram_summary("d", self.D)
         self.d__sum = tf.histogram_summary("d_", self.D_)
@@ -107,7 +110,7 @@ class DCGAN(object):
 
     def train(self, config):
         """Train DCGAN"""
-        data = glob(os.path.join("./data", config.dataset, "*.jpg"))
+        data = glob(os.path.join("./training", config.dataset, "*.wav"))
         #np.random.shuffle(data)
 
         d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
@@ -122,8 +125,8 @@ class DCGAN(object):
         self.writer = tf.train.SummaryWriter("./logs", self.sess.graph_def)
 
         sample_z = np.random.uniform(-1, 1, size=(self.sample_size , self.z_dim))
-        sample_files = data[0:self.sample_size]
-        sample = [get_wav(sample_file, self.wav_size, is_crop=self.is_crop) for sample_file in sample_files]
+        sample_file = data[0]
+        sample =get_wav(sample_file, self.wav_size, is_crop=self.is_crop) #[get_wav(sample_file, self.wav_size, is_crop=self.is_crop) for sample_file in sample_files]
         sample_wavs = np.array(sample).astype(np.float32)
 
         counter = 1
@@ -148,8 +151,10 @@ class DCGAN(object):
             idx=0
             batch_idxs=0
             for batch_item in get_wav_content(batch_files):
-                batch_item = batch_item[:int(len(batch_item)/64)*64]
-                batch_wavs_multiple = batch_item.reshape([-1, 64, 64,64,3])
+                max_items = int(len(batch_item)/64)*64
+                batch_item = batch_item[:max_items]
+                batch_wavs_multiple = batch_item.reshape([-1, 64, WAV_SIZE,WAV_HEIGHT,3])
+                sample_wavs = sample_wavs[:max_items].reshape([-1, 64, WAV_SIZE,WAV_HEIGHT,3])
                 batch_idxs+=1
                 for i, batch_wavs in enumerate(batch_wavs_multiple):
                     if(len(batch_wavs)!=64):
@@ -183,17 +188,34 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake+errD_real, errG))
 
-                    if np.mod(counter, 100) == 1:
+                    if np.mod(counter, 100) == 2:
                         samples, d_loss, g_loss = self.sess.run(
                             [self.sampler, self.d_loss, self.g_loss],
-                            feed_dict={self.z: sample_z, self.wavs: sample_wavs}
+                            feed_dict={self.z: sample_z, self.wavs: sample_wavs[0]}
                         )
-                        save_wavs(samples, [8, 8],
+                        save_wav(samples, 64,
                                     './samples/train_%s_%s.png' % (epoch, idx))
                         print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
 
                     if np.mod(counter, 30) == 2:
                         self.save(config.checkpoint_dir, counter)
+
+
+    def discriminator_wav(self, wav, reuse=False, y=None):
+        if reuse:
+            tf.get_variable_scope().reuse_variables()
+
+        if not self.y_dim:
+            h0 = lrelu(conv2d(wav, self.df_dim, name='d_h0_conv'))
+            h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
+            h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
+            h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+            h4 = linear(tf.reshape(h3, [self.batch_size, -1]), 1, 'd_h3_lin')
+
+            return tf.nn.sigmoid(h4)
+        else:
+            print("WTF")
+            return None
 
     def discriminator(self, wav, reuse=False, y=None):
         if reuse:

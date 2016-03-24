@@ -19,15 +19,30 @@ get_stddev = lambda x, k_h, k_w: 1/math.sqrt(k_w*k_h*x.get_shape()[-1])
 
 PADVALUE=-123
 
+MAG_MAP = [1.11943966684e-08, 1.23202881935]
 
+max=None
+min=None
 def represent(complexx):
+    global max, min
     magnitude = abs(1/complexx)
     norm_i = complexx.real*magnitude
     norm_j = complexx.imag*magnitude
+    magnitude = magnitude
+    #if(max == None or max < magnitude):
+    #    max=magnitude 
+    #if(min == None or min > magnitude):
+    #    min=magnitude 
+    #print(min, max)
+    #magnitude = magnitude - MAG_MAP[0]
+    #magnitude = magnitude / (MAG_MAP[1] - MAG_MAP[0])
     return [norm_i, norm_j, magnitude]
 
 def decode(i):
     magnitude = i[2]
+    #magnitude = magnitude * (MAG_MAP[1] - MAG_MAP[0])
+    #magnitude = MAG_MAP[0]+magnitude
+    #magnitude = random.random()
     c_i = i[0]/magnitude
     c_j = i[1]/magnitude
     return complex(c_i, c_j)

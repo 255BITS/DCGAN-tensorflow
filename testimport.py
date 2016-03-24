@@ -8,11 +8,16 @@
 
 from utils import *
 
-wav_path="training/02-overworld-01.wav"
-wav_size=64
+import tensorflow as tf
 
-wav= get_wav(wav_path, wav_size, is_crop=True)
+with tf.Session() as sess:
+    wav_path="output.wav"
+    wav_size=64
 
-print("WAV IS", wav)
+    print(sess)
+    wav= get_wav(wav_path, wav_size, is_crop=True)
+    wav['data'] = sess.run(fft_transform, {raw_data: })
 
-res= save_wav(wav, wav_size, "sanity.wav")
+    print("WAV IS", wav)
+
+    res= save_wav(wav, wav_size, "sanity.wav")
