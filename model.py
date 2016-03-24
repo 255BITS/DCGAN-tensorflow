@@ -83,7 +83,7 @@ class DCGAN(object):
         self.D = self.discriminator(self.encoded_wavs, reuse=None)
 
         self.sampler = self.sampler(self.z)
-        self.sampler = tensorflow_wav.decode(self.sampler)
+        self.sampler = tf.reshape(tensorflow_wav.decode(self.sampler),[-1])
         self.D_ = self.discriminator(self.G, reuse=True)
         
 
@@ -193,14 +193,15 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake+errD_real, errG))
 
-                    if np.mod(counter, 100) == 2:
+                    if np.mod(counter, 50) == 2:
                         samples, d_loss, g_loss = self.sess.run(
                             [self.sampler, self.d_loss, self.g_loss],
                             feed_dict={self.z: sample_z, self.wavs: sample_wavs[0]}
                         )
                         samplewav = sample.copy()
                         samplewav['data']=samples
-                        tensorflow_wav.save_wav(wavobj,
+                        print(samples)
+                        tensorflow_wav.save_wav(samplewav,
                                     './samples/train_%s_%s.png' % (epoch, idx))
                         print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
 
@@ -270,10 +271,17 @@ class DCGAN(object):
             print('h3',h3.get_shape())
 
             h4, self.h4_w, self.h4_b = deconv2d(h3,
-                [self.batch_size, WAV_SIZE, WAV_HEIGHT, 1], name='g_h4', with_w=True)
+                [self.batch_size, WAV_SIZE, WAV_HEIGHT, 2], name='g_h4', with_w=True)
 
             print('h4',h4.get_shape())
-            return tf.nn.tanh(h4)
+            scale = tf.get_variable('gen_scale', [1, 1], initializer=tf.random_normal_initializer(-1000, 1000000))
+            tanh = tf.nn.tanh(h4)
+            original_shape = h4.get_shape()
+            to_mul = tf.reshape(tanh, [-1, 2])
+            bias = tf.get_variable('gen_bias', [self.batch_size*WAV_SIZE*WAV_HEIGHT, 2], initializer=tf.random_normal_initializer(-100, 100000))
+            output = tf.mul(to_mul, scale) + bias
+            reshaped = tf.reshape(output, original_shape)
+            return reshaped
         else:
             yb = tf.reshape(y, [None, 1, 1, self.y_dim])
             z = tf.concat(1, [z, y])
@@ -308,9 +316,17 @@ class DCGAN(object):
             h3 = deconv2d(h2, [self.batch_size, 32, 32, self.gf_dim*1], name='g_h3')
             h3 = tf.nn.relu(self.g_bn3(h3, train=False))
 
-            h4 = deconv2d(h3, [self.batch_size, 64, 64, 1], name='g_h4')
+            h4 = deconv2d(h3, [self.batch_size, 64, 64, 2], name='g_h4')
 
-            return tf.nn.tanh(h4)
+            scale = tf.get_variable('gen_scale', [1, 1], initializer=tf.random_normal_initializer(-1000, 1000000))
+            tanh = tf.nn.tanh(h4)
+            original_shape = h4.get_shape()
+            to_mul = tf.reshape(tanh, [-1, 2])
+            bias = tf.get_variable('gen_bias', [self.batch_size*WAV_SIZE*WAV_HEIGHT, 2], initializer=tf.random_normal_initializer(-100, 100000))
+            output = tf.mul(to_mul, scale) + bias
+            reshaped = tf.reshape(output, original_shape)
+ 
+            return reshaped
         else:
             yb = tf.reshape(y, [None, 1, 1, self.y_dim])
             z = tf.concat(1, [z, y])

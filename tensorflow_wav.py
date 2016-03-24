@@ -7,8 +7,9 @@ from scipy.io.wavfile import read, write
 def get_wav(path):
 
     wav = wave.open(path, 'rb')
-    _, data = read(path)
+    rate, data = read(path)
     results={}
+    results['rate']=rate
     results['channels']=wav.getnchannels()
     results['sampwidth']=wav.getsampwidth()
     results['framerate']=wav.getframerate()
@@ -30,7 +31,7 @@ def save_wav(in_wav, path):
     wav.setnframes(in_wav['nframes'])
 
     wav.setcomptype('NONE', 'processed')
-    processed = np.array(in_wav['data'])
+    processed = np.array(in_wav['data'], dtype=np.int16)
     # process ifft in tf
     wav.writeframes(processed)
 
@@ -41,26 +42,31 @@ def decompose(input):
     #tf.unpack(input, 2)#
     #real = tf.slice(input, [0,0,0,0,0], [-1,-1,-1,-1,1])
     #imag = tf.slice(input, [0,0,0,0,1], [-1,-1,-1,-1,1])
-    real, imag = tf.split(4, 2, input)
+    real, imag = tf.split(3, 2, input)
     complex = tf.complex(real, imag)
     return complex
 def compose(input):
     real = tf.real(input)
     imag = tf.imag(input)
-    return tf.concat(4, [real, imag])
-def encode(input, inner_shape=[-1, 64,64,64,1], shape=[-1, 64,64,64,2]):
+    return tf.concat(3, [real, imag])
+def encode(input, inner_shape=[64,64,64,1], shape=[64,64,64,2]):
     output = input
+    #output = tf.reshape(output, [-1, 64])
     output = tf.reshape(output, [-1])
     output = tf.fft(output)
+    #output = tf.fft2d(output)
     output = tf.reshape(output, inner_shape)
     output = compose(output)
     output = tf.reshape(output, shape)
     return output
-def decode(input, shape):
+def decode(input, inner_shape=[64,64,64,2], shape=[64,64,64,1]):
     output = input
+    output = tf.reshape(output, inner_shape)
     output = decompose(output)
+    #output = tf.reshape(output, [-1, 64])
     output = tf.reshape(output, [-1])
     output = tf.ifft(output)
+    #output = tf.ifft2d(output)
     print(output.get_shape())
     output = tf.reshape(output, shape)
     return output

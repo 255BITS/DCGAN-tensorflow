@@ -21,17 +21,17 @@ with tf.Session() as sess:
     raw_data = tf.placeholder(tf.complex64, [len(wav['data'])])
 
     print("WAV IS", wav)
-    data = tf.reshape(raw_data[:64*64*64], [-1, 64,64,64,1])
+    data = tf.reshape(raw_data[:64*64*64], [64,64,64,1])
     #data = tf.reshape(raw_data[:64*64*64], [-1])
     print("calling encoded")
     encoded = encode(data)
     print(encoded)
-    decoded = decode(encoded, [-1, 64,64,64,1])
+    decoded = decode(encoded )
 
     noop = decoded
     #noop = encoded
     wav['data'] = sess.run(noop, {raw_data: wav['data']})
     print('data is now', wav['data'])
     #wav['data'] = fft(ifft(wav['data']))
-    wav['data'] = np.array(wav['data'], dtype=np.int16)
+    wav['data'] = np.array(wav['data'])
     res= save_wav(wav, "sanity.wav")
