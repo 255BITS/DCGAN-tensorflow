@@ -10,19 +10,28 @@ import numpy as np
 from numpy.fft import fft, ifft
 
 
-from tensorflow_wav import get_wav, save_wav, tensorflow_fft_graph, tensorflow_ifft_graph
+from tensorflow_wav import get_wav, save_wav, encode, decode
 
 wav_path="input.wav"
 wav_size=64
 
 with tf.Session() as sess:
     wav= get_wav(wav_path)
+    print('data is', wav['data'])
     raw_data = tf.placeholder(tf.complex64, [len(wav['data'])])
 
     print("WAV IS", wav)
-    noop = tensorflow_fft_graph(tensorflow_ifft_graph(raw_data))
+    data = tf.reshape(raw_data[:64*64*64], [-1, 64,64,64,1])
+    #data = tf.reshape(raw_data[:64*64*64], [-1])
+    print("calling encoded")
+    encoded = encode(data)
+    print(encoded)
+    decoded = decode(encoded, [-1, 64,64,64,1])
 
+    noop = decoded
+    #noop = encoded
     wav['data'] = sess.run(noop, {raw_data: wav['data']})
+    print('data is now', wav['data'])
     #wav['data'] = fft(ifft(wav['data']))
     wav['data'] = np.array(wav['data'], dtype=np.int16)
     res= save_wav(wav, "sanity.wav")
