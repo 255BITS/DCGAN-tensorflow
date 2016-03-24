@@ -9,6 +9,7 @@ import scipy.misc
 import numpy as np
 from time import gmtime, strftime
 from cmath import polar
+import tensorflow_wav
 
 from wav import *
 
@@ -69,22 +70,6 @@ def get_wav(wav_path, wav_size, is_crop=True):
     return np.array(wav)
 
 
-def save_wav(wav, size, wav_path):
-    linearwav = np.reshape(wav, [-1,3])
-    complexwav=[]
-    for i in linearwav:
-        if(i[0] != PADVALUE or i[1] != PADVALUE):
-            #print(i[0], i[1], i[2])
-
-            complexwav += [decode(i)]
-    complexwav = np.array(complexwav).reshape([-1])
-
-    output = ifft(np.array(complexwav))
-    uintout = output.astype('int16')
-    print("Writing:", complexwav)
-    scipy.io.wavfile.write(wav_path, 44100, uintout)
-    print("Saved to ", wav_path)
-    return linearwav
 
 def imread(path):
     return scipy.misc.imread(path).astype(np.float)
@@ -209,10 +194,12 @@ def make_gif(wavs, fname, duration=2, true_wav=False):
   #clip.write_gif(fname, fps = len(wavs) / duration)
 
 def visualize(sess, dcgan, config, option):
+  in_wav = tensorflow_wav.get_wav('input.wav')
   if option == 0:
     z_sample = np.random.uniform(-0.5, 0.5, size=(config.batch_size, dcgan.z_dim))
     samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
-    save_wav(samples, 64, './samples/test.wav' )
+    in_wav['data']=samples
+    tensorflow_wav.save_wav(in_wav, './samples/test.wav' )
   elif option == 1:
     values = np.arange(0, 1, 1./config.batch_si)
     for idx in range(100):
@@ -222,7 +209,8 @@ def visualize(sess, dcgan, config, option):
         z[idx] = values[kdx]
 
       samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
-      save_wav(samples, 64, './samples/test_arange_%s.wav' % (idx))
+      in_wav['data']=samples
+      tensorflow_wav.save_wav(in_wav, './samples/test_arange_%s.wav'%(idx) )
   elif option == 2:
     values = np.arange(0, 1, 1./config.batch_size)
     for idx in [random.randint(0, 99) for _ in range(100)]:
