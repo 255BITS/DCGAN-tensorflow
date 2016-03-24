@@ -8,6 +8,6 @@ def do(command):
 
 files = glob.glob("training/*.wav")
 for file in files:
-    do("ffmpeg -i \""+file+"\" -bufsize 4k -b:v 4k "+file+"-4k.wav")
-    do("rm \""+file+"\"")
+    do("ffmpeg -i \""+file+"\" -bufsize 4096 -b:v 4096 -ar 4096 "+file+"-4k.wav")
+    do("mv \""+file+"\" training/processed")
 
