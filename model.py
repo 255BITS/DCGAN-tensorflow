@@ -160,8 +160,8 @@ class DCGAN(object):
 
                 max_items = int(len(batch_item)/WAV_SIZE/WAV_HEIGHT/config.batch_size)*WAV_SIZE*WAV_HEIGHT * config.batch_size
                 batch_item = batch_item[:max_items]
-                print(max_items)
-                print(len(batch_item))
+                #print(max_items)
+                #print(len(batch_item))
                 batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, WAV_SIZE,WAV_HEIGHT,1])
                 sample_wavs = sample_wavs[:max_items].reshape([-1, config.batch_size, WAV_SIZE,WAV_HEIGHT,1])
                 batch_idxs+=1
@@ -169,7 +169,6 @@ class DCGAN(object):
                     idx+=1
                     batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
                                 .astype(np.float32)
-                    print('batch wave', np.shape(batch_wavs), np.shape(batch_z))
 
                     # Update D network
                     _, summary_str = self.sess.run([d_optim, self.d_sum],
@@ -195,14 +194,14 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake+errD_real, errG))
 
-                    if np.mod(counter, 3) == 2:
-                        print(np.shape(sample_wavs[0]), np.shape(sample_z))
+                    if np.mod(counter, 10) == 2:
+                        #print(np.shape(sample_wavs[0]), np.shape(sample_z))
                         samples, d_loss, g_loss = self.sess.run(
                             [self.sampler, self.d_loss, self.g_loss],
                             feed_dict={self.z: sample_z, self.wavs: sample_wavs[0]}
                         )
                         samplewav = sample.copy()
-                        samplewav['data']=samples
+                        samplewav['data']=samples[:WAV_HEIGHT*WAV_SIZE]
                         print(samples)
                         tensorflow_wav.save_wav(samplewav,
                                     './samples/train_%s_%s.png' % (epoch, idx))
