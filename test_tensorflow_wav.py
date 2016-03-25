@@ -20,7 +20,7 @@ with tf.Session() as sess:
     print('data is', wav['data'])
     raw_data = tf.placeholder(tf.complex64, [len(wav['data'])])
 
-    print("WAV IS", wav)
+    print("WAV IS", wav['data'].tolist())
     data = tf.reshape(raw_data[:64*64], [-1,64,64,1])
     #data = tf.reshape(raw_data[:64*64*64], [-1])
     print("calling encoded")
