@@ -18,21 +18,22 @@ wav_size=64
 with tf.Session() as sess:
     wav= get_wav(wav_path)
     print('data is', wav['data'])
+    print(wav)
     raw_data = tf.placeholder(tf.complex64, [len(wav['data'])])
 
-    print("WAV IS", wav['data'].tolist())
-    data = tf.reshape(raw_data[:64*64], [-1,64,64,1])
+    #print("WAV IS", wav['data'].tolist())
+    fs = 2048
+    T=1
+    data = tf.reshape(raw_data[:int(fs*T)], [1, int(fs*T)])
     #data = tf.reshape(raw_data[:64*64*64], [-1])
-    print("calling encoded")
-    encoded = encode(data)
-    print(encoded)
-    decoded = decode(encoded )
+    encoded = encode(data, bitrate=fs)
+    #print(encoded)
+    decoded = decode(encoded, bitrate=fs)
 
     noop = decoded
     #noop = encoded
     print(len(wav['data']))
     wav['data'] = sess.run(noop, {raw_data: wav['data']})
-    print('data is now', wav['data'])
-    #wav['data'] = fft(ifft(wav['data']))
+    #print('data is now', wav['data'])
     wav['data'] = np.array(wav['data'])
     res= save_wav(wav, "sanity.wav")

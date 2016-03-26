@@ -18,58 +18,6 @@ pp = pprint.PrettyPrinter()
 
 get_stddev = lambda x, k_h, k_w: 1/math.sqrt(k_w*k_h*x.get_shape()[-1])
 
-PADVALUE=-123
-
-MAG_MAP = [1.11943966684e-08, 1.23202881935]
-
-max=None
-min=None
-def represent(complexx):
-    global max, min
-    magnitude = abs(1/complexx)
-    norm_i = complexx.real*magnitude
-    norm_j = complexx.imag*magnitude
-    magnitude = magnitude
-    #if(max == None or max < magnitude):
-    #    max=magnitude 
-    #if(min == None or min > magnitude):
-    #    min=magnitude 
-    #print(min, max)
-    #magnitude = magnitude - MAG_MAP[0]
-    #magnitude = magnitude / (MAG_MAP[1] - MAG_MAP[0])
-    return [norm_i, norm_j, magnitude]
-
-def decode(i):
-    magnitude = i[2]
-    #magnitude = magnitude * (MAG_MAP[1] - MAG_MAP[0])
-    #magnitude = MAG_MAP[0]+magnitude
-    #magnitude = random.random()
-    c_i = i[0]/magnitude
-    c_j = i[1]/magnitude
-    return complex(c_i, c_j)
-
-def get_wav(wav_path, wav_size, is_crop=True):
-    print("Loading wav ", wav_path)
-    wavobj = loadfft(wav_path)
-    height = WAV_HEIGHT
-    wav = wavobj
-
-    #wav = [[cmcomplexx.real, complexx.imag, abs(complexx)] for complexx in wavobj['raw']]
-    wav = [ 
-       represent(complexx) for complexx in wavobj['raw']
-            ]
-    wav = [r for r in wav if (r[2]>1e-7)]
-
-    padamount = (wav_size*height)-(len(wav)%(wav_size*height))
-    
-    wav += [[PADVALUE,PADVALUE,1] for i in range(0,padamount)]
-
-    wav = np.reshape(wav, [-1, wav_size,height,3])
-    wav = np.array(wav)
-    print(np.shape(wav))
-    return np.array(wav)
-
-
 
 def imread(path):
     return scipy.misc.imread(path).astype(np.float)
@@ -201,7 +149,7 @@ def visualize(sess, dcgan, config, option):
     in_wav['data']=samples
     tensorflow_wav.save_wav(in_wav, './samples/test.wav' )
   elif option == 1:
-    values = np.arange(0, 1, 1./config.batch_si)
+    values = np.arange(0, 1, 1./config.batch_size)
     for idx in range(100):
       print(" [*] %d" % idx)
       z_sample = np.zeros([config.batch_size, dcgan.z_dim])

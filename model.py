@@ -180,15 +180,12 @@ class DCGAN(object):
                         feed_dict={ self.wavs: batch_wavs, self.z: batch_z })
                     self.writer.add_summary(summary_str, counter)
 
-                    # Update G network
-                    _, summary_str = self.sess.run([g_optim, self.g_sum],
-                        feed_dict={ self.z: batch_z })
-                    self.writer.add_summary(summary_str, counter)
-
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                    _, summary_str = self.sess.run([g_optim, self.g_sum],
-                        feed_dict={ self.z: batch_z })
-                    self.writer.add_summary(summary_str, counter)
+                    for repeat in range(2):
+                        # Update G network
+                        _, summary_str = self.sess.run([g_optim, self.g_sum],
+                            feed_dict={ self.z: batch_z })
+                        self.writer.add_summary(summary_str, counter)
 
                     errD_fake = self.d_loss_fake.eval({self.z: batch_z})
                     errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
@@ -199,22 +196,28 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake+errD_real, errG))
 
-                    if np.mod(counter, 3) == 2:
-                        #print(np.shape(sample_wavs[0]), np.shape(sample_z))
-                        samples, d_loss, g_loss = self.sess.run(
-                            [self.sampler, self.d_loss, self.g_loss],
-                            feed_dict={self.z: sample_z, self.wavs: sample_wavs[0]}
-                        )
+                    if np.mod(counter,10) == 2:
+                        all_samples = []
+                        #bz = sample_z
+                        for i in range(1):
+                            bz = np.random.normal(0.5, 0.5, [config.batch_size, self.z_dim]) \
+                            #        .astype(np.float32)
+                            #print(np.shape(sample_wavs[0]), np.shape(sample_z))
+                            samples = self.sess.run(
+                                self.sampler,
+                                feed_dict={self.z: bz}
+                            )
+                            all_samples += [samples]
                         samplewav = sample.copy()
-                        samplewav['data']=samples[:WAV_HEIGHT*WAV_SIZE*10]
-                        print(samples)
-                        tensorflow_wav.save_wav(samplewav,
-                                    './samples/train_%s_%s.png' % (epoch, idx))
+                        samplewav['data']=all_samples#[:WAV_HEIGHT*WAV_SIZE]
+                        #print(samples)
+                        filename = "./samples/%s_%s_train.png"% (epoch, idx)
+                        tensorflow_wav.save_wav(samplewav, filename )
                         print("[Sample] min %d max %d avg %d mean %d stddev %d" % (samplewav['data'].min(), samplewav['data'].max(), np.average(samplewav['data']), np.mean(samplewav['data']), np.std(samplewav['data'])))
-                        print('./samples/train_%s_%s.png' % (epoch, idx))
+                        print("[Sample] saved in "+ filename)
 
                     if np.mod(counter, 30) == 2:
-                        print("Saving...")
+                        print("Saving !")
                         self.save(config.checkpoint_dir, counter)
 
 
