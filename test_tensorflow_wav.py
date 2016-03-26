@@ -17,11 +17,10 @@ wav_size=64
 
 with tf.Session() as sess:
     wav= get_wav(wav_path)
-    print('data is', wav['data'])
-    raw_data = tf.placeholder(tf.complex64, [len(wav['data'])])
+    raw_data = tf.placeholder(tf.float32, [len(wav['data'])])
 
     print("WAV IS", wav['data'].tolist())
-    data = tf.reshape(raw_data[:64*64], [-1,64,64,1])
+    data = tf.reshape(raw_data[:64*64], [-1])
     #data = tf.reshape(raw_data[:64*64*64], [-1])
     print("calling encoded")
     encoded = encode(data)
