@@ -5,19 +5,23 @@ from scipy.io.wavfile import read, write
 import scipy
 import math
 
+FRAME_SIZE=(64/2048)
+HOP=(2048-64)/(2048*64)
 
 def stft(input, fs, framesz, hop):
     input = tf.reshape(input, [-1])
     framesamp = int(framesz*fs)
     hopsamp = int(hop*fs)
-    print('hopsamp is', hopsamp, hop, fs)
-    print('framesamp is', framesamp)
-    print("elemes", input.get_shape()[-1]-framesamp, (int(input.get_shape()[-1])-framesamp)/hopsamp)
+    #print('hopsamp is', hopsamp, hop, fs)
+    #print('framesamp is', framesamp)
+    #print("elemes", input.get_shape()[-1]-framesamp, (int(input.get_shape()[-1])-framesamp)/hopsamp)
     w = scipy.hanning(framesamp)
 
     def do_fft(w, input, i, n):
-        print("adding fft node for ", i, n)
-        return fft(w*input[i:n]) 
+        #print("adding fft node for ", i, framesamp)
+        slice = tf.slice(input, [i], [framesamp])
+        slice = fft(slice*w)
+        return slice
     X = [do_fft(w, input, i, i+framesamp)
                      for i in range(0, input.get_shape()[-1]-framesamp, hopsamp)]
     return tf.concat(0,X)
@@ -33,12 +37,12 @@ def istft(X, fs, hop):
     hopsamp = int(hop*fs)
     print("hopsamp is", hopsamp)
     def do_ifft(X, n,i):
-        print("BUILDING SLICE", n,i)
-        res = tf.slice(X, [n, 0], [1, height])*(1+0j) # is this needed?
+        #print("BUILDING SLICE", n,i)
+        res = tf.slice(X, [n, 0], [1, height])
         res = ifft(tf.reshape(res, [-1]))
         pre = tf.zeros([i], dtype='complex64')
         post = tf.zeros([length-i-height], dtype='complex64')
-        to_add = tf.concat(0, [pre, res, post])
+        to_add = tf.concat(0, [pre, res*(1+0j), post])
         return tf.add(output, to_add)
     iterator = enumerate(range(0, length-height, hopsamp))
     for n,i in iterator:
@@ -134,12 +138,12 @@ def encode(input,bitrate=2120):
     for i in range(int(input.get_shape()[0])):
         print("GO")
         result = tf.slice(output, [i, 0], [1, -1])
-        result = tf.reshape(result, [-1]) 
-        result = stft(result,bitrate,0.0156, 0.03125)
-        result = tf.reshape(result, [1,64,64,1])
+        result = stft(result,bitrate,FRAME_SIZE, HOP)
+        #result = tf.reshape(result, [1,64,64,1])
         results += [result]
 
     output = tf.concat(0, results)
+    output = tf.reshape(output, [-1, 64,64,1])
     output = compose(output)
     return output
 def decode(input, bitrate=2120):
@@ -151,7 +155,7 @@ def decode(input, bitrate=2120):
     for i in range(input.get_shape()[0]):
         result = tf.slice(output, [i, 0, 0], [1, -1, -1])
         result = tf.reshape(result, [64,64]) 
-        result = istft(result, bitrate, 0.03125)
+        result = istft(result, bitrate, HOP)
         results += [tf.reshape(result, [-1])]
 
     output = tf.concat(0, results)
