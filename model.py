@@ -162,6 +162,10 @@ class DCGAN(object):
                 batch_item = batch_item[:max_items]
                 #print(max_items)
                 #print(len(batch_item))
+
+                #TODO: review this code to make sure nothing is being deformed
+                # Are we properly getting the values?  We can output to a file to be sure 'sanity.wav'
+
                 batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, WAV_SIZE,WAV_HEIGHT,1])
                 sample_wavs = sample_wavs[:max_items].reshape([-1, config.batch_size, WAV_SIZE,WAV_HEIGHT,1])
                 batch_idxs+=1
@@ -170,6 +174,7 @@ class DCGAN(object):
                     batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
                                 .astype(np.float32)
 
+                    print('min', 'max', batch_wavs.min(), batch_wavs.max())
                     # Update D network
                     _, summary_str = self.sess.run([d_optim, self.d_sum],
                         feed_dict={ self.wavs: batch_wavs, self.z: batch_z })
@@ -194,20 +199,22 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake+errD_real, errG))
 
-                    if np.mod(counter, 10) == 2:
+                    if np.mod(counter, 3) == 2:
                         #print(np.shape(sample_wavs[0]), np.shape(sample_z))
                         samples, d_loss, g_loss = self.sess.run(
                             [self.sampler, self.d_loss, self.g_loss],
                             feed_dict={self.z: sample_z, self.wavs: sample_wavs[0]}
                         )
                         samplewav = sample.copy()
-                        samplewav['data']=samples[:WAV_HEIGHT*WAV_SIZE]
+                        samplewav['data']=samples[:WAV_HEIGHT*WAV_SIZE*10]
                         print(samples)
                         tensorflow_wav.save_wav(samplewav,
                                     './samples/train_%s_%s.png' % (epoch, idx))
-                        print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
+                        print("[Sample] min %d max %d avg %d mean %d stddev %d" % (samplewav['data'].min(), samplewav['data'].max(), np.average(samplewav['data']), np.mean(samplewav['data']), np.std(samplewav['data'])))
+                        print('./samples/train_%s_%s.png' % (epoch, idx))
 
                     if np.mod(counter, 30) == 2:
+                        print("Saving...")
                         self.save(config.checkpoint_dir, counter)
 
 

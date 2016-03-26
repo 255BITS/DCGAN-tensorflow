@@ -72,8 +72,8 @@ def decode(input, inner_shape=[-1,64,64,2], shape=[-1,64,64,1]):
 
 def scale_up(input):
     real, imag = tf.split(3, 2, input)
-    real_sign = tf.sign(real)
+    #real_sign = tf.sign(real)
     imag_sign = tf.sign(imag)
-    real = 65535*real-65535/2#tf.pow((65535/2), real)
-    imag = tf.pow(1e6, imag)
-    return tf.concat(3, [real_sign*real, imag_sign*imag*0])#TODO
+    real = 65535/2*real#tf.pow((65535/2), real)
+    #imag = tf.pow(1e6, imag)
+    return tf.concat(3, [real, tf.zeros_like(imag)])#imag_sign*imag*0])#TODO
