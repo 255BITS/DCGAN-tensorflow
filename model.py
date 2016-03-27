@@ -182,7 +182,7 @@ class DCGAN(object):
                     self.writer.add_summary(summary_str, counter)
 
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                    for repeat in range(3):
+                    for repeat in range(2):
                         # Update G network
                         _, summary_str = self.sess.run([g_optim, self.g_sum],
                             feed_dict={ self.z: batch_z })
@@ -198,9 +198,11 @@ class DCGAN(object):
                             time.time() - start_time, errD_fake+errD_real, errG))
 
                     SAVE_COUNT=10
-                    if np.mod(counter,SAVE_COUNT) == 2:
+                    if np.mod(counter, SAVE_COUNT) == 8:
+                        print("Saving after next batch")
+                    if np.mod(counter,SAVE_COUNT) == 9:
                         all_samples = []
-                        #bz = sample_z
+                        bz = sample_z
                         for i in range(1):
                             bz = np.random.normal(0.5, 0.5, [config.batch_size, self.z_dim]) \
                             #        .astype(np.float32)
@@ -274,11 +276,11 @@ class DCGAN(object):
             print('h3',h3.get_shape())
 
             h4, self.h4_w, self.h4_b = deconv2d(h3,
-                [self.batch_size, WAV_SIZE, WAV_HEIGHT, 2], name='g_h4', with_w=True)
+                [self.batch_size, WAV_SIZE, WAV_HEIGHT, 2], name='g_h4', stddev=4, with_w=True)
 
             print('h4',h4.get_shape())
             tanh = tf.nn.tanh(h4)
-            return tensorflow_wav.scale_up(tanh)
+            return tensorflow_wav.scale_up(h4)
 
     def sampler(self, z, y=None):
         tf.get_variable_scope().reuse_variables()
@@ -306,9 +308,9 @@ class DCGAN(object):
             h4 = deconv2d(h3, [self.batch_size, 64, 64, 2], name='g_h4')
             print('h4', h4.get_shape())
 
-            tanh = tf.nn.tanh(h4)
+            #tanh = tf.nn.tanh(h4)
 
-            return tensorflow_wav.scale_up(tanh)
+            return tensorflow_wav.scale_up(h4)
 
     def save(self, checkpoint_dir, step):
         model_name = "DCGAN.model"

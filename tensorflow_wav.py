@@ -167,23 +167,45 @@ def decode(input, bitrate=2048):
 
 def scale_up(input):
     #return input
-    #return input*(32768)
-    return (1/tf.exp(input*7.8*math.pi)) #compose(decompose(1/tf.exp(input*30)))
+    #return (((input-1)*2))*(32768/2)
+    #return (1/(input**3)-1)*32768
+    #input = (input-1)*2
+    #return (1/(i1-tf.exp(input**2))) #compose(decompose(1/tf.exp(input*30)))
     #scale_w2 = tf.get_variable("scale_w2", [1,1], initializer = tf.constant_initializer(1000))
     #scale_w2 = tf.get_variable("scale_w2", [1,1], dtype='complex64', initializer = tf.constant_initializer(1000000+1000j))
     #exp_scale = tf.get_variable("scale_exp", [1,1], initializer = tf.constant_initializer(1))
 
-    real, imag = tf.split(3, 2, input)
-    real = (1/tf.exp(real*3*math.pi)) #compose(decompose(1/tf.exp(input*30)))
-    return tf.concat(3, [real, tf.zeros_like(imag)])
+    #real, imag = tf.split(3, 2, input)
+    #real = (1/tf.exp(real*3*math.pi)) #compose(decompose(1/tf.exp(input*30)))
+    #return tf.concat(3, [real, tf.zeros_like(imag)])
     #return tf.sqrt(2.0)*input*w
     #return input * 10
+    #shape = [-1, 64*64*2]
+    #orig_shape = input.get_shape()
+    #input_dim = int(shape[1])
+    #W = tf.get_variable("scale_w", [input_dim, input_dim], initializer=tf.random_normal_initializer(0,stddev=8000))
+    #b = tf.get_variable("scale_b", [input_dim], initializer=tf.constant_initializer(100))
+    #output = tf.matmul(tf.reshape(input, shape),W) + b
+
+    #output = tf.nn.tanh(output)
+    #W = tf.get_variable("scale_w2", [256, input_dim], initializer=tf.random_normal_initializer(0,stddev=100))
+    #b = tf.get_variable("scale_b2", [input_dim], initializer=tf.constant_initializer(100))
+    #output = tf.matmul(output,W) + b
+    #output = tf.reshape(output, orig_shape)
+    #return output
+     #beeps
     real, imag = tf.split(3, 2, input)
-    #real_sign = tf.sign(real)
-    imag_sign = tf.sign(imag)
-    new_real = (1/tf.exp(real*8*math.pi))*real_sign
-    new_imag = (1/tf.exp(imag*8*math.pi))*imag_sign
+    #pi=math.pi
+    new_real = (real**2)*tf.sign(real)
+    new_imag = (imag**2)*tf.sign(imag)
+    #new_real = 1/(real**2)*tf.sign(real)
+    #new_imag = 1/(imag**2)*tf.sign(imag)
+    #new_real = tf.maximum(tf.minimum(32000., 1/tf.sqrt(real*pi)), -32000.)*tf.sign(real)
+    #new_imag = tf.maximum(tf.minimum(32000., 1/tf.sqrt(imag*pi)), -32000.)*tf.sign(imag)
     return tf.concat(3, [new_real, new_imag])
+
+    #return tf.maximum(1/tf.log(input)+0.5, -1)*16000
+
     #return (1/tf.exp(input*8*math.pi)) #compose(decompose(1/tf.exp(input*30)))
     #return input*100#*math.pi)) #compose(decompose(1/tf.exp(input*30)))
     #pow = 2
