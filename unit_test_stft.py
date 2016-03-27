@@ -37,6 +37,7 @@ class TestStringMethods(unittest.TestCase):
         data = wav['data'][:fs*T]
         with tf.Session() as sess:
             x = test_stft_cpu.stft(data, fs, framesz, hop)
+            print('max/min', x.max(),x.min())
             raw_data = tf.placeholder(tf.complex64, [fs*T])
             tstft=tensorflow_wav.stft(raw_data, fs, framesz, hop)
             y = sess.run(tstft, {raw_data:data})

@@ -33,9 +33,7 @@ def istft(X, fs, hop):
     length = T*fs
     output = tf.zeros([fs*T], dtype='complex64')
 
-    print("length is", width, height)
     hopsamp = int(hop*fs)
-    print("hopsamp is", hopsamp)
     def do_ifft(X, n,i):
         #print("BUILDING SLICE", n,i)
         res = tf.slice(X, [n, 0], [1, height])
@@ -128,15 +126,16 @@ def ifft(input):
     #    tf.reshape(output, shape)
     #    return output
 
-def encode(input,bitrate=2120):
+def encode(input,bitrate=2048):
     output = input
 
     #with tf.variable_scope('fft', reuse=None):
     #    stored_n = tf.get_variable("fft_n", [1], dtype=tf.float32, initializer=tf.constant_initializer(0.0))
     results = []
-    print("SHAPE IS", int(input.get_shape()[0]))
+    print("SHAPE IS", input.get_shape())
+    output = tf.reshape(output, [-1, bitrate])
     for i in range(int(input.get_shape()[0])):
-        print("GO")
+        print("Setting up sftf layer ", i)
         result = tf.slice(output, [i, 0], [1, -1])
         result = stft(result,bitrate,FRAME_SIZE, HOP)
         #result = tf.reshape(result, [1,64,64,1])
@@ -146,13 +145,14 @@ def encode(input,bitrate=2120):
     output = tf.reshape(output, [-1, 64,64,1])
     output = compose(output)
     return output
-def decode(input, bitrate=2120):
+def decode(input, bitrate=2048):
     output = input
     output = decompose(output)
     output = tf.reshape(output, [-1, 64,64])
     results = []
 
     for i in range(input.get_shape()[0]):
+        print("stft decode layer", i)
         result = tf.slice(output, [i, 0, 0], [1, -1, -1])
         result = tf.reshape(result, [64,64]) 
         result = istft(result, bitrate, HOP)
@@ -166,8 +166,9 @@ def decode(input, bitrate=2120):
     return output
 
 def scale_up(input):
-    return input
-
+    #return input
+    #return input*(32768)
+    return (1/tf.exp(input*7.8*math.pi)) #compose(decompose(1/tf.exp(input*30)))
     #scale_w2 = tf.get_variable("scale_w2", [1,1], initializer = tf.constant_initializer(1000))
     #scale_w2 = tf.get_variable("scale_w2", [1,1], dtype='complex64', initializer = tf.constant_initializer(1000000+1000j))
     #exp_scale = tf.get_variable("scale_exp", [1,1], initializer = tf.constant_initializer(1))

@@ -9,6 +9,7 @@ import tensorflow_wav
 
 WAV_SIZE=64
 WAV_HEIGHT=64
+BITRATE=2048
 class DCGAN(object):
     def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
                  batch_size=64, sample_size = 2, wav_shape=[WAV_SIZE, WAV_HEIGHT, 2],
@@ -68,7 +69,7 @@ class DCGAN(object):
         if self.y_dim:
             self.y= tf.placeholder(tf.float32, [None, self.y_dim], name='y')
 
-        self.wavs = tf.placeholder(tf.complex64, [self.batch_size, WAV_SIZE, WAV_HEIGHT, 1],
+        self.wavs = tf.placeholder(tf.complex64, [self.batch_size, BITRATE],
                                     name='real_wavs')
 
         self.z = tf.placeholder(tf.float32, [None, self.z_dim],
@@ -158,7 +159,7 @@ class DCGAN(object):
                 batch_item = wavobj['data']
                 print(batch_item, len(batch_item))
 
-                max_items = int(len(batch_item)/WAV_SIZE/WAV_HEIGHT/config.batch_size)*WAV_SIZE*WAV_HEIGHT * config.batch_size
+                max_items = int(len(batch_item)/BITRATE/config.batch_size)*BITRATE * config.batch_size
                 batch_item = batch_item[:max_items]
                 #print(max_items)
                 #print(len(batch_item))
@@ -166,8 +167,8 @@ class DCGAN(object):
                 #TODO: review this code to make sure nothing is being deformed
                 # Are we properly getting the values?  We can output to a file to be sure 'sanity.wav'
 
-                batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, WAV_SIZE,WAV_HEIGHT,1])
-                sample_wavs = sample_wavs[:max_items].reshape([-1, config.batch_size, WAV_SIZE,WAV_HEIGHT,1])
+                batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, BITRATE])
+                sample_wavs = sample_wavs[:max_items].reshape([-1, config.batch_size, BITRATE])
                 batch_idxs+=1
                 for i, batch_wavs in enumerate(batch_wavs_multiple):
                     idx+=1
@@ -181,7 +182,7 @@ class DCGAN(object):
                     self.writer.add_summary(summary_str, counter)
 
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                    for repeat in range(2):
+                    for repeat in range(3):
                         # Update G network
                         _, summary_str = self.sess.run([g_optim, self.g_sum],
                             feed_dict={ self.z: batch_z })
@@ -196,7 +197,8 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake+errD_real, errG))
 
-                    if np.mod(counter,10) == 2:
+                    SAVE_COUNT=10
+                    if np.mod(counter,SAVE_COUNT) == 2:
                         all_samples = []
                         #bz = sample_z
                         for i in range(1):
@@ -212,11 +214,12 @@ class DCGAN(object):
                         samplewav['data']=all_samples#[:WAV_HEIGHT*WAV_SIZE]
                         #print(samples)
                         filename = "./samples/%s_%s_train.png"% (epoch, idx)
+                        data = np.array(samplewav['data'])
                         tensorflow_wav.save_wav(samplewav, filename )
-                        print("[Sample] min %d max %d avg %d mean %d stddev %d" % (samplewav['data'].min(), samplewav['data'].max(), np.average(samplewav['data']), np.mean(samplewav['data']), np.std(samplewav['data'])))
+                        print("[Sample] min %d max %d avg %d mean %d stddev %d" % (data.min(), data.max(), np.average(data), np.mean(data), np.std(data)))
                         print("[Sample] saved in "+ filename)
 
-                    if np.mod(counter, 30) == 2:
+                    if np.mod(counter, SAVE_COUNT) == 2:
                         print("Saving !")
                         self.save(config.checkpoint_dir, counter)
 
