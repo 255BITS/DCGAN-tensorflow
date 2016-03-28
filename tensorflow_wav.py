@@ -6,7 +6,7 @@ import scipy
 import ops
 import math
 
-FRAME_SIZE=(64/2048)
+FRAME_SIZE=(64/2048.)
 HOP=(2048-64)/(2048*64)
 
 def stft(input, fs, framesz, hop):
@@ -21,7 +21,7 @@ def stft(input, fs, framesz, hop):
     def do_fft(w, input, i, n):
         #print("adding fft node for ", i, framesamp)
         slice = tf.slice(input, [i], [framesamp])
-        slice = fft(slice*w)
+        #slice = fft(slice*w)
         return slice
     X = [do_fft(w, input, i, i+framesamp)
                      for i in range(0, input.get_shape()[-1]-framesamp, hopsamp)]
@@ -38,7 +38,8 @@ def istft(X, fs, hop):
     def do_ifft(X, n,i):
         #print("BUILDING SLICE", n,i)
         res = tf.slice(X, [n, 0], [1, height])
-        res = ifft(tf.reshape(res, [-1]))
+        res = tf.reshape(res, [-1])
+        #res = ifft(res)
         pre = tf.zeros([i], dtype='complex64')
         post = tf.zeros([length-i-height], dtype='complex64')
         to_add = tf.concat(0, [pre, res*(1+0j), post])
@@ -168,8 +169,8 @@ def decode(input, bitrate=2048):
 
 def scale_up(input):
     real, imag = tf.split(3, 2, tf.nn.tanh(input))
-    min = 32000+12000j
-    max = 32000+12000j
+    min = 22248+0j
+    max = 21773+0j
     real = max.real*real-min.real
     imag = max.imag*imag-min.imag
     return tf.concat(3, [real, imag])

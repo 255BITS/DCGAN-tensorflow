@@ -20,7 +20,7 @@ with tf.Session() as sess:
     print('data is', wav['data'])
     print(wav)
     fs = 2048
-    T=1
+    T=10
     raw_data = tf.placeholder(tf.complex64, [1,fs*T])
 
     #print("WAV IS", wav['data'].tolist())
