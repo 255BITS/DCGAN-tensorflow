@@ -181,10 +181,10 @@ class DCGAN(object):
 
                     if(errD_fake > 10):
                         errd_range = 3
-                    elif(errD_fake > 3):
+                    elif(errD_fake > 8):
                         errd_range = 2
                     else:
-                        errd_range=2
+                        errd_range=1
                     #print('min', 'max', 'mean', 'stddev', batch_wavs.min(), batch_wavs.max(), np.mean(batch_wavs), np.std(batch_wavs))
                     for repeat in range(errd_range):
                         #print("discrim ", errd_range)
@@ -194,7 +194,7 @@ class DCGAN(object):
                         #self.writer.add_summary(summary_str, counter)
 
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                    if(errG > 16):
+                    if(errG > 10):
                         errg_range = 2
                     else:
                         errg_range=1
