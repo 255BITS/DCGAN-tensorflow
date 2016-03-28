@@ -57,7 +57,7 @@ def conv_cond_concat(x, y):
     return tf.concat(3, [x, y*tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])])
 
 def conv2d(input_, output_dim, 
-           k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.2,
+           k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02,
            name="conv2d"):
     with tf.variable_scope(name):
         w = tf.get_variable('w', [k_h, k_w, input_.get_shape()[-1], output_dim],
@@ -70,8 +70,8 @@ def conv2d(input_, output_dim,
         return conv
 
 def deconv2d(input_, output_shape,
-             k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.2,
-             name="deconv2d", with_w=False):
+             k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, biasstart=0.5,
+             name="deconv2d", with_w=False, no_bias=False):
     with tf.variable_scope(name):
         # filter : [height, width, output_channels, in_channels]
         w = tf.get_variable('w', [k_h, k_h, output_shape[-1], input_.get_shape()[-1]],
@@ -86,8 +86,12 @@ def deconv2d(input_, output_shape,
             deconv = tf.nn.deconv2d(input_, w, output_shape=output_shape,
                                 strides=[1, d_h, d_w, 1])
 
-        biases = tf.get_variable('biases', [output_shape[-1]], initializer=tf.constant_initializer(0.5))
-        deconv = tf.reshape(tf.nn.bias_add(deconv, biases), deconv.get_shape())
+        if(no_bias):
+            print("Skipping bias")
+
+        else:
+            biases = tf.get_variable('biases', [output_shape[-1]], initializer=tf.constant_initializer(biasstart))
+            deconv = tf.reshape(tf.nn.bias_add(deconv, biases), deconv.get_shape())
 
         if with_w:
             return deconv, w, biases
@@ -100,7 +104,7 @@ def lrelu(x, leak=0.1, name="lrelu"):
         f2 = 0.5 * (1 - leak)
         return f1 * x + f2 * abs(x)
 
-def linear(input_, output_size, scope=None, stddev=0.2, bias_start=0.5, with_w=False):
+def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.5, with_w=False):
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "Linear"):

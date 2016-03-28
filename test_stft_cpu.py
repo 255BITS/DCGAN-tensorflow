@@ -1,4 +1,5 @@
 import scipy, pylab
+import numpy as np
 import tensorflow_wav
 def stft(x, fs, framesz, hop):
     #print("STFT got", x, fs, framesz, hop)
@@ -46,13 +47,14 @@ if __name__ == '__main__':
 
     s = stft(data, fs, framesz, hop)
     #print(s)
+    print("min, max, mean, stddev",s.min(), s.max(), np.mean(s), np.std(s))
 
     T=1
     si = s
     #si = istft(s, fs,T, hop)
-    print('wavdata is ', len(wav['data']))
+    #print('wavdata is ', len(wav['data']))
 
-    print(si)
+    #print(si)
     wav['data']=si
     print('min/max', s.min(), s.max())
     #print(wav)
