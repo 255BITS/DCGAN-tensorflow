@@ -16,7 +16,7 @@ def get_wav(path):
     results['nframes']=wav.getnframes()
     results['compname']=wav.getcompname()
     # process fft in tf
-    processed = np.array(data).astype(np.complex64, copy=False)
+    processed = np.array(data).astype(np.int32, copy=False)
     results['data']=processed
     return results
 
@@ -41,27 +41,30 @@ def decompose(input):
     #tf.unpack(input, 2)#
     #real = tf.slice(input, [0,0,0,0,0], [-1,-1,-1,-1,1])
     #imag = tf.slice(input, [0,0,0,0,1], [-1,-1,-1,-1,1])
+    return input
     real, imag = tf.split(3, 2, input)
     complex = tf.complex(real, imag)
     return complex
 def compose(input):
+    return input
     real = tf.real(input)
     imag = tf.imag(input)
     return tf.concat(3, [real, imag])
-def encode(input, inner_shape=[-1,64,64,1], shape=[-1,64,64,2]):
+def encode(input, inner_shape=[-1,64,64,1], shape=[-1,64,64,1]):
+    return input
     output = input
     #output = tf.reshape(output, [-1, 64])
     output = tf.reshape(output, [-1])
     #output = tf.fft(output)
     #output = tf.fft2d(output)
-    output = tf.reshape(output, inner_shape)
-    output = compose(output)
+    #output = tf.reshape(output, inner_shape)
+    #output = compose(output)
     output = tf.reshape(output, shape)
     return output
-def decode(input, inner_shape=[-1,64,64,2], shape=[-1,64,64,1]):
+def decode(input, inner_shape=[-1,64,64,1], shape=[-1,64,64,1]):
     output = input
     output = tf.reshape(output, inner_shape)
-    output = decompose(output)
+    #output = decompose(output)
     #output = tf.reshape(output, [-1, 64])
     output = tf.reshape(output, [-1])
     #output = tf.ifft(output)
@@ -71,6 +74,7 @@ def decode(input, inner_shape=[-1,64,64,2], shape=[-1,64,64,1]):
     return output
 
 def scale_up(input):
+    return input*65535
     real, imag = tf.split(3, 2, input)
     real_sign = tf.sign(real)
     imag_sign = tf.sign(imag)

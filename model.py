@@ -3,18 +3,21 @@ import time
 from glob import glob
 import tensorflow as tf
 
+
 from ops import *
 from utils import *
 import tensorflow_wav
+from features import mfcc
+
 
 WAV_SIZE=64
 WAV_HEIGHT=64
 class DCGAN(object):
     def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
-                 batch_size=64, sample_size = 2, wav_shape=[WAV_SIZE, WAV_HEIGHT, 2],
-                 y_dim=None, z_dim=64, gf_dim=64, df_dim=64,
+                 batch_size=64, sample_size = 2, wav_shape=[WAV_SIZE, WAV_HEIGHT, 1],
+                 y_dim=None, z_dim=64, gf_dim=64, df_dim=64, 
                  gfc_dim=1024, dfc_dim=1024, c_dim=2, dataset_name='default',
-                 checkpoint_dir='checkpoint'):
+                 checkpoint_dir='checkpoint', mfcc_dim=16):
         """
 
         Args:
@@ -45,6 +48,7 @@ class DCGAN(object):
         self.dfc_dim = dfc_dim
 
         self.c_dim = c_dim
+        self.mfcc_dim = mfcc_dim
 
         # batch normalization : deals with poor initialization helps gradient flow
         self.d_bn1 = batch_norm(batch_size, name='d_bn1')
@@ -68,8 +72,11 @@ class DCGAN(object):
         if self.y_dim:
             self.y= tf.placeholder(tf.float32, [None, self.y_dim], name='y')
 
-        self.wavs = tf.placeholder(tf.complex64, [self.batch_size, WAV_SIZE, WAV_HEIGHT, 1],
+        self.wavs = tf.placeholder(tf.float32, [self.batch_size, WAV_SIZE, WAV_HEIGHT, 1],
                                     name='real_wavs')
+
+        self.batch_mfcc = tf.placeholder(tf.float32, [self.batch_size, WAV_HEIGHT, self.mfcc_dim, 1],
+                                    name='batch_mfcc')
 
         self.z = tf.placeholder(tf.float32, [None, self.z_dim],
                                 name='z')
@@ -80,11 +87,11 @@ class DCGAN(object):
 
         self.G = self.generator(self.z)
         print("G is", self.G.get_shape(), self.encoded_wavs.get_shape())
-        self.D = self.discriminator(self.encoded_wavs, reuse=None)
+        self.D = self.discriminator(self.encoded_wavs, self.batch_mfcc, reuse=None)
 
         self.sampler = self.sampler(self.z)
         self.sampler = tf.reshape(tensorflow_wav.decode(self.sampler),[-1])
-        self.D_ = self.discriminator(self.G, reuse=True)
+        self.D_ = self.discriminator(self.G, self.batch_mfcc, reuse=True)
         
 
         self.d_sum = tf.histogram_summary("d", self.D)
@@ -119,6 +126,7 @@ class DCGAN(object):
         #print('d_vars', [shape.get_shape() for shape in self.d_vars])
         d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
                           .minimize(self.d_loss, var_list=self.d_vars)
+        print("trainable:", [f.name for f in tf.trainable_variables()])
         g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
                           .minimize(self.g_loss, var_list=self.g_vars)
 
@@ -156,7 +164,9 @@ class DCGAN(object):
             batch_idxs=0
             for wavobj in get_wav_content(batch_files):
                 batch_item = wavobj['data']
-                print(batch_item, len(batch_item))
+                flattened_item = np.array(wavobj['data']).flatten()
+
+                print(batch_item, len(batch_item), wavobj, np.shape(flattened_item))
 
                 max_items = int(len(batch_item)/WAV_SIZE/WAV_HEIGHT/config.batch_size)*WAV_SIZE*WAV_HEIGHT * config.batch_size
                 batch_item = batch_item[:max_items]
@@ -169,11 +179,14 @@ class DCGAN(object):
                     idx+=1
                     batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
                                 .astype(np.float32)
-                    print('batch wave', np.shape(batch_wavs), np.shape(batch_z))
+
+                    mfccd = mfcc(np.array(batch_wavs).flatten(), wavobj['rate'], 0.025, 0.015625, self.mfcc_dim)
+                    batch_mfcc = np.reshape(mfccd, [self.batch_size, WAV_SIZE, self.mfcc_dim, 1])
+                    print('batch wave', np.shape(batch_wavs), np.shape(batch_z), np.shape(batch_mfcc))
 
                     # Update D network
                     _, summary_str = self.sess.run([d_optim, self.d_sum],
-                        feed_dict={ self.wavs: batch_wavs, self.z: batch_z })
+                        feed_dict={ self.wavs: batch_wavs, self.z: batch_z, self.batch_mfcc: batch_mfcc })
                     self.writer.add_summary(summary_str, counter)
 
                     # Update G network
@@ -187,7 +200,7 @@ class DCGAN(object):
                     self.writer.add_summary(summary_str, counter)
 
                     errD_fake = self.d_loss_fake.eval({self.z: batch_z})
-                    errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
+                    errD_real = self.d_loss_real.eval({self.wavs: batch_wavs, self.batch_mfcc: batch_mfcc})
                     errG = self.g_loss.eval({self.z: batch_z})
 
                     counter += 1
@@ -195,37 +208,53 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake+errD_real, errG))
 
-                    if np.mod(counter, 3) == 2:
-                        print(np.shape(sample_wavs[0]), np.shape(sample_z))
+                    if np.mod(counter, 100) == 2:
+                        s_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
+                                    .astype(np.float32)
+                        s_z2 = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
+                                    .astype(np.float32)
+
                         samples, d_loss, g_loss = self.sess.run(
                             [self.sampler, self.d_loss, self.g_loss],
-                            feed_dict={self.z: sample_z, self.wavs: sample_wavs[0]}
+                            feed_dict={self.z: s_z, self.wavs: sample_wavs[0], self.batch_mfcc: batch_mfcc}
                         )
                         samplewav = sample.copy()
-                        samplewav['data']=samples
-                        print(samples)
+                        samplewav['data']=samples[:64*64]
                         tensorflow_wav.save_wav(samplewav,
-                                    './samples/train_%s_%s.png' % (epoch, idx))
+                                    './samples/train_%s_%s_1.png' % (epoch, idx))
                         print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
+
+
+                        samples, d_loss, g_loss = self.sess.run(
+                            [self.sampler, self.d_loss, self.g_loss],
+                            feed_dict={self.z: s_z2, self.wavs: sample_wavs[0], self.batch_mfcc: batch_mfcc}
+                        )
+                        samplewav = sample.copy()
+                        samplewav['data']=samples[:64*64]
+                        tensorflow_wav.save_wav(samplewav,
+                                    './samples/train_%s_%s_2.png' % (epoch, idx))
+                        print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
+
 
                     if np.mod(counter, 30) == 2:
                         self.save(config.checkpoint_dir, counter)
 
 
-    def discriminator(self, wav, reuse=False, y=None):
+    def discriminator(self, wav, batch_mfcc, reuse=False, y=None):
         if reuse:
             tf.get_variable_scope().reuse_variables()
 
         if not self.y_dim:
             print("Discriminator creation")
             print('wav', wav.get_shape())
+            print('mfcc', batch_mfcc.get_shape())
             h0 = lrelu(conv2d(wav, self.df_dim, name='d_h0_conv'))
             print('h0', h0.get_shape())
             h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
             print('h1', h1.get_shape())
-            h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
+            h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv', k_h=4, k_w=4)))
             print('h2', h2.get_shape())
-            h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+            h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv', k_h=4, k_w=2)))
             print('h3', h3.get_shape())
             h4 = linear(tf.reshape(h3, [self.batch_size, -1]), 1, 'd_h3_lin')
             print('h4', h4.get_shape())
@@ -262,7 +291,7 @@ class DCGAN(object):
             print('h3',h3.get_shape())
 
             h4, self.h4_w, self.h4_b = deconv2d(h3,
-                [self.batch_size, WAV_SIZE, WAV_HEIGHT, 2], name='g_h4', with_w=True)
+                [self.batch_size, WAV_SIZE, WAV_HEIGHT, 1], name='g_h4', with_w=True)
 
             print('h4',h4.get_shape())
             tanh = tf.nn.tanh(h4)
@@ -291,7 +320,7 @@ class DCGAN(object):
             h3 = tf.nn.relu(self.g_bn3(h3, train=False))
             print('h3', h3.get_shape())
 
-            h4 = deconv2d(h3, [self.batch_size, 64, 64, 2], name='g_h4')
+            h4 = deconv2d(h3, [self.batch_size, 64, 64, 1], name='g_h4')
             print('h4', h4.get_shape())
 
             tanh = tf.nn.tanh(h4)

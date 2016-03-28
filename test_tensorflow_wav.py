@@ -8,6 +8,7 @@
 import tensorflow as tf
 import numpy as np
 from numpy.fft import fft, ifft
+from features import mfcc
 
 
 from tensorflow_wav import get_wav, save_wav, encode, decode
@@ -33,6 +34,9 @@ with tf.Session() as sess:
     print(len(wav['data']))
     wav['data'] = sess.run(noop, {raw_data: wav['data']})
     print('data is now', wav['data'])
+    flattened_item = np.array(wav['data']).flatten()
+    mfccd = mfcc(flattened_item, wav['rate'], 0.025, 0.015625)
+    print("flat", np.shape(flattened_item), np.shape(mfccd))
     #wav['data'] = fft(ifft(wav['data']))
     wav['data'] = np.array(wav['data'])
     res= save_wav(wav, "sanity.wav")
