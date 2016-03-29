@@ -66,6 +66,11 @@ class DCGAN(object):
         self.build_model()
 
     def build_model(self):
+
+
+        with tf.variable_scope('scale'):
+            sign_real = tf.get_variable('sign_real', [self.batch_size, WAV_HEIGHT, WAV_SIZE,1 ], initializer=tf.constant_initializer(1))
+            sign_imag = tf.get_variable('sign_imag', [self.batch_size, WAV_HEIGHT, WAV_SIZE, 1], initializer=tf.constant_initializer(1))
         if self.y_dim:
             self.y= tf.placeholder(tf.float32, [None, self.y_dim], name='y')
 
@@ -85,7 +90,7 @@ class DCGAN(object):
 
         self.sampler = self.sampler(self.z)
         self.sampler = tf.reshape(self.sampler,[-1])
-        self.sampler = tensorflow_wav.decode_sampler(self.sampler)
+        #self.sampler = tensorflow_wav.decode(self.sampler)
         encoded_G = tensorflow_wav.compose(self.G)#tensorflow_wav.encode(self.G)
         self.D_ = self.discriminator(encoded_G, reuse=True)
         
@@ -114,7 +119,7 @@ class DCGAN(object):
 
     def train(self, config):
         """Train DCGAN"""
-        data = glob(os.path.join("./training", "*.wav"))
+        data = glob(os.path.join("./training", "*.stft"))
         print(data)
         #np.random.shuffle(data)
 
@@ -133,7 +138,7 @@ class DCGAN(object):
 
         sample_z = np.random.uniform(-1, 1, size=(self.batch_size , self.z_dim))
         sample_file = data[0]
-        sample =tensorflow_wav.get_wav(sample_file)#get_wav(sample_file, self.wav_size, is_crop=self.is_crop) #[get_wav(sample_file, self.wav_size, is_crop=self.is_crop) for sample_file in sample_files]
+        sample =tensorflow_wav.get_stft(sample_file)#get_wav(sample_file, self.wav_size, is_crop=self.is_crop) #[get_wav(sample_file, self.wav_size, is_crop=self.is_crop) for sample_file in sample_files]
         sample_wavs = np.array(sample['data'])
 
         counter = 1
@@ -147,12 +152,12 @@ class DCGAN(object):
         print('epoch', config.epoch)
 
         for epoch in range(config.epoch):
-            batch_files = glob(os.path.join("./training", "*.wav"))
+            batch_files = glob(os.path.join("./training", "*.stft"))
 
             def get_wav_content(files):
                 for filee in files:
                     print("Yielding ", filee)
-                    yield tensorflow_wav.get_wav(filee)
+                    yield tensorflow_wav.get_stft(filee)
 
             #print(batch)
             idx=0
@@ -161,21 +166,27 @@ class DCGAN(object):
                 batch_item = wavobj['data']
                 print(batch_item, len(batch_item))
 
-                max_items = int(len(batch_item)/BITRATE/config.batch_size)*BITRATE * config.batch_size
-                batch_item = batch_item[:max_items]
-                #print(max_items)
                 #print(len(batch_item))
 
                 #TODO: review this code to make sure nothing is being deformed
                 # Are we properly getting the values?  We can output to a file to be sure 'sanity.wav'
 
-                print(max_items)
-                batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, BITRATE])
+                #pre_fft_batch = batch_item.reshape([-1])
+                #print("Computing FFT")
+                #data = tf.placeholder(tf.complex64, [pre_fft_batch.shape[0]])
+                #post_fft = self.sess.run([tensorflow_wav.build_fft_graph(data)],
+                #        feed_dict={ data: pre_fft_batch })
+                #print("Done computing FFT")
+                max_items = int(len(batch_item)/BITRATE/config.batch_size)*BITRATE * config.batch_size
+                batch_item = batch_item[:max_items]
+                print("MAX ITEMS IS", max_items, 'to', BITRATE)
+
                 sample_wavs = sample_wavs[:max_items].reshape([-1, config.batch_size, BITRATE])
                 batch_idxs+=1
                 errD_fake = 0
                 errD_real = 0
                 errG = 0
+                batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, BITRATE])
                 for i, batch_wavs in enumerate(batch_wavs_multiple):
                     idx+=1
                     batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
@@ -216,8 +227,8 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG))
 
-                    SAVE_COUNT=200
-                    SAMPLE_COUNT=50
+                    SAVE_COUNT=100
+                    SAMPLE_COUNT=20
                     
                     print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
@@ -235,11 +246,13 @@ class DCGAN(object):
                             )
                             all_samples += [samples]
                         samplewav = sample.copy()
-                        samplewav['data']=all_samples#[:WAV_HEIGHT*WAV_SIZE]
+                        samplewav['data']=np.array(all_samples)#[:WAV_HEIGHT*WAV_SIZE]
                         #print(samples)
                         filename = "./samples/%s_%s_train.png"% (epoch, idx)
                         data = np.array(samplewav['data'])
-                        tensorflow_wav.save_wav(samplewav, filename )
+                        save_data = data.reshape([-1, WAV_SIZE])
+                        samplewav['data']=save_data
+                        tensorflow_wav.save_stft(samplewav,filename+".stft"  )
                         print("[Sample] min %d max %d avg %d mean %d stddev %d" % (data.min(), data.max(), np.average(data), np.mean(data), np.std(data)))
                         print("[Sample] saved in "+ filename)
 

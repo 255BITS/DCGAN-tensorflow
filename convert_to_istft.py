@@ -2,7 +2,7 @@ fs=2048
 framesz=(64/2048)
 hop=(2048-64)/(2048*64)
 import glob
-from test_stft_cpu import stft
+from test_stft_cpu import stft, istft
 import os
 import sys
 import tensorflow_wav
@@ -18,10 +18,13 @@ if(len(files)==0):
 
 for file in files:
     print("Reading stft for "+file, ' at rate ', fs)
-    wav= tensorflow_wav.get_wav(file)
-    data = stft(wav['data'],fs, framesz, hop)
+    wav= tensorflow_wav.get_stft(file)
+    nframes = wav['nframes']
+    print('shape', wav['data'].shape)
+    time = 192
+    data = istft(wav['data'],fs, time, hop)
     print(wav)
     wav['data']=data
     print(np.min(data), np.max(data))
-    res= tensorflow_wav.save_stft(wav, file+".stft")
-    print(file+".stft"+" is written")
+    res= tensorflow_wav.save_wav(wav, file+".istft")
+    print(file+".istft"+" is written")

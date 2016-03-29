@@ -5,6 +5,7 @@ from scipy.io.wavfile import read, write
 import scipy
 import ops
 import math
+import pickle
 
 FRAME_SIZE=(64/2048)
 HOP=(2048-64)/(2048*64)
@@ -29,8 +30,10 @@ def decode_sampler(input, bitrate=4096):
 
 
 def stft(input, fs, framesz, hop):
-    input = tf.reshape(input, [-1])
-    return tf.fft(input)
+    #input = tf.reshape(input, [-1])
+    #return tf.fft(input)
+    #return input
+    #return tf.fft(input)
     input =tf.reshape(input,[64,64])
     framesamp = int(framesz*fs)
     hopsamp = int(hop*fs)
@@ -99,9 +102,23 @@ def save_wav(in_wav, path):
     wav.setnframes(in_wav['nframes'])
 
     wav.setcomptype('NONE', 'processed')
-    processed = np.array(in_wav['data'], dtype=np.int16)
     # process ifft in tf
+
+    processed = np.array(in_wav['data'], dtype=np.int16)
     wav.writeframes(processed)
+
+def save_stft(in_wav, path):
+    f = open(path, "wb")
+    try:
+        pickle.dump(in_wav, f, pickle.HIGHEST_PROTOCOL)
+        print("DUMPED")
+    finally:
+        f.close()
+def get_stft(filename):
+    f = open(filename, "rb")
+    data = pickle.load(f)
+    f.close()
+    return data
 
 
 def decompose(input, rank=3):
@@ -134,8 +151,8 @@ def fft(input):
     #    return output
 
 def ifft(input):
-    return tf.ifft(input)
-    #return input#tf.fft2d(input)
+    #return tf.ifft(input)
+    return tf.fft2d(input)
     #shape = input.get_shape()
     #output = tf.ifft2d(input)
 
@@ -153,18 +170,18 @@ def encode(input,bitrate=4096):
 
     #with tf.variable_scope('fft', reuse=None):
     #    stored_n = tf.get_variable("fft_n", [1], dtype=tf.float32, initializer=tf.constant_initializer(0.0))
-    results = []
-    print("SHAPE IS", input.get_shape())
-    output = tf.reshape(output, [-1, bitrate])
-    for i in range(int(input.get_shape()[0])):
-        print("Setting up sftf layer ", i)
-        result = tf.slice(output, [i, 0], [1, -1])
-        result = stft(result,bitrate,FRAME_SIZE, HOP)
-        print('hello', output.get_shape(), result.get_shape())
-        result = tf.reshape(result, [1,64,64,1])
-        results += [result]
+    #results = []
+    #print("SHAPE IS", input.get_shape())
+    #output = tf.fft(tf.reshape(output,[-1]))
+    #output = tf.reshape(output, [-1, bitrate])
+    #for i in range(int(input.get_shape()[0])):
+    #    print("Setting up sftf layer ", i)
+    #    result = tf.slice(output, [i, 0], [1, -1])
+    #    result = stft(result,bitrate,FRAME_SIZE, HOP)
+    #    result = tf.reshape(result, [1,64,64,1])
+    #    results += [result]
 
-    output = tf.concat(0, results)
+    #output = tf.concat(0, results)
     output = tf.reshape(output, [-1, 64,64,1])
     output = compose(output)
     return output
@@ -189,14 +206,34 @@ def decode(input, bitrate=4096):
     return output
 
 def scale_up(input):
-    output = tf.nn.tanh(input)
-    real, imag = tf.split(3, 2, output)
-    #return 1/(tf.exp(output*4*math.pi))
+
+    with tf.variable_scope('scale'):
+        tf.get_variable_scope().reuse_variables()
+        output = tf.nn.tanh(input)
+        real, imag = tf.split(3, 2, output)
+        #sign_real = tf.get_variable('sign_real', real.get_shape(), initializer=tf.constant_initializer(1))
+        #sign_imag = tf.get_variable('sign_imag', imag.get_shape(), initializer=tf.constant_initializer(1))
+        #tf.assign(sign_real, tf.sign(real))
+        #tf.assign(sign_imag, tf.sign(imag))
+        #imag_sign = tf.sign(imag)*1
+        #real = tf.abs(1/tf.exp(real*(4.4*math.pi)))*sign_real#-min.real
+        #imag = tf.abs(1/tf.exp(imag*(4.4*math.pi)))*sign_imag#-min.imag
+        real = (tf.pow(real, 3.))*1e7#*1e7
+        imag = (tf.pow(imag, 3.))*1e7#*1e7
+
+        complex = tf.complex(real, imag)
+        return tf.concat(3, [complex])
+        #return 1/(tf.exp(output*4*math.pi))
     #min = 32000+12000j
-    max = 65000+32000j
-    #max = 40000+15000j
+    #max = 65000+32000j
+    #max = 50000+20000j
+
+    output = decompose(output)
+    max = 1000000+1000000j
+    return output*max#decompose(output*max)
     #max = 70000+30000j
-    real = max.real*real#-min.real
-    imag = max.imag*imag#-min.imag
-    complex = tf.complex(real, imag)
-    return tf.concat(3, [complex])
+    #max =  23000+0j
+
+def build_fft_graph(input):
+    return tf.ifft(input)
+

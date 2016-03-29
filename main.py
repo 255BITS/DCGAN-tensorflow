@@ -45,7 +45,7 @@ def main(_):
                                       [dcgan.h1_w, dcgan.h1_b, dcgan.g_bn1],
                                       [dcgan.h2_w, dcgan.h2_b, dcgan.g_bn2],
                                       [dcgan.h3_w, dcgan.h3_b, dcgan.g_bn3],
-                                      [dcgan.h4_w, dcgan.h4_b, None])
+                                      )# TODO FIXME [dcgan.h4_w, dcgan.h4_b, None])
 
         # Below is codes for visualization
         OPTION = 1
