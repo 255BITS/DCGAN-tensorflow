@@ -210,7 +210,7 @@ def scale_up(input):
     with tf.variable_scope('scale'):
         #tf.get_variable_scope().reuse_variables()
         output = tf.nn.tanh(input)
-        return decompose(input*1e5)
+        return decompose(input)*2e4
         real, imag = tf.split(3, 2, output)
         imag_sign = tf.sign(imag)
         real_sign = tf.sign(real)
