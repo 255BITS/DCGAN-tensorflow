@@ -236,24 +236,22 @@ class DCGAN(object):
                     if np.mod(counter,SAMPLE_COUNT) == SAMPLE_COUNT-2:
                         all_samples = []
                         bz = sample_z
-                        for i in range(3):
-                            bz = np.random.normal(0.5, 0.5, [config.batch_size, self.z_dim]) \
-                            #        .astype(np.float32)
-                            #print(np.shape(sample_wavs[0]), np.shape(sample_z))
-                            samples = self.sess.run(
-                                self.sampler,
-                                feed_dict={self.z: bz}
-                            )
-                            all_samples += [samples]
+                        bz = np.random.normal(0, 1, [config.batch_size, self.z_dim]) \
+                        #        .astype(np.float32)
+                        #print(np.shape(sample_wavs[0]), np.shape(sample_z))
+                        samples = self.sess.run(
+                            self.sampler,
+                            feed_dict={self.z: bz}
+                        )
                         samplewav = sample.copy()
-                        samplewav['data']=np.array(all_samples)#[:WAV_HEIGHT*WAV_SIZE]
+                        samplewav['data']=samples
                         #print(samples)
                         filename = "./samples/%s_%s_train.png"% (epoch, idx)
                         data = np.array(samplewav['data'])
                         save_data = data.reshape([-1, WAV_SIZE])
                         samplewav['data']=save_data
                         tensorflow_wav.save_stft(samplewav,filename+".stft"  )
-                        print("[Sample] min %d max %d avg %d mean %d stddev %d" % (data.min(), data.max(), np.average(data), np.mean(data), np.std(data)))
+                        print("[Sample] min %d max %d avg %d mean %d stddev %d" % (save_data.min(), save_data.max(), np.average(save_data), np.mean(save_data), np.std(save_data)))
                         print("[Sample] saved in "+ filename)
 
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-2:

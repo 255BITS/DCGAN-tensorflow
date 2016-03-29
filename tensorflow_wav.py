@@ -11,24 +11,6 @@ FRAME_SIZE=(64/2048)
 HOP=(2048-64)/(2048*64)
 
 
-def decode_sampler(input, bitrate=4096):
-    output = input
-    output = tf.reshape(output, [-1, 4096])
-    results = []
-    for i in range(int(output.get_shape()[0])):
-        print("Setting up sftf layer ", i, output.get_shape())
-        result = tf.slice(output, [i, 0], [1, -1])
-        #result = tf.reshape(result, [64,64])
-        result = tf.reshape(result, [-1])
-        result = tf.ifft(result)
-        #result = tf.reshape(result, [-1])
-        #result = tf.reshape(result,[-1])
-        results += [result]
-
-    output = tf.concat(0, results)
-    return output
-
-
 def stft(input, fs, framesz, hop):
     #input = tf.reshape(input, [-1])
     #return tf.fft(input)
@@ -122,10 +104,6 @@ def get_stft(filename):
 
 
 def decompose(input, rank=3):
-    #real,imag = tf.unpack(input, 2)
-    #tf.unpack(input, 2)#
-    #real = tf.slice(input, [0,0,0,0,0], [-1,-1,-1,-1,1])
-    #imag = tf.slice(input, [0,0,0,0,1], [-1,-1,-1,-1,1])
     real, imag = tf.split(rank, 2, input)
     complex = tf.complex(real, imag)
     return complex
@@ -134,108 +112,16 @@ def compose(input, rank=3):
     imag = tf.imag(input)
     return tf.concat(rank, [real, imag])
 
-def fft(input):
-    return tf.fft(input)
-    #shape = input.get_shape()
-    #output = tf.fft2d(input)
-
-    #n=int(tf.reshape(input, [-1]).get_shape()[0])
-    #with tf.variable_scope('fft', reuse=True):
-    #    stored_n = tf.get_variable("fft_n", [1], dtype=tf.float32, initializer=tf.constant_initializer(0.0))
-    #    print('shape is', n)
-    #    tf.assign(stored_n, [n])
-    #    output=compose(output, rank=0)
-    #    output = output * (1.0/n)
-    #    output=decompose(output, rank=0)
-    #    tf.reshape(output, shape)
-    #    return output
-
-def ifft(input):
-    #return tf.ifft(input)
-    return tf.fft2d(input)
-    #shape = input.get_shape()
-    #output = tf.ifft2d(input)
-
-    #with tf.variable_scope('fft', reuse=True):
-    #    stored_n = tf.get_variable("fft_n", [1], dtype=tf.float32)
-
-    #    output=compose(output, rank=0)
-    #    output = tf.div(output, tf.div(1.0,tf.sqrt(stored_n)))
-    #    output=decompose(output, rank=0)
-    #    tf.reshape(output, shape)
-    #    return output
-
 def encode(input,bitrate=4096):
     output = input
 
-    #with tf.variable_scope('fft', reuse=None):
-    #    stored_n = tf.get_variable("fft_n", [1], dtype=tf.float32, initializer=tf.constant_initializer(0.0))
-    #results = []
-    #print("SHAPE IS", input.get_shape())
-    #output = tf.fft(tf.reshape(output,[-1]))
-    #output = tf.reshape(output, [-1, bitrate])
-    #for i in range(int(input.get_shape()[0])):
-    #    print("Setting up sftf layer ", i)
-    #    result = tf.slice(output, [i, 0], [1, -1])
-    #    result = stft(result,bitrate,FRAME_SIZE, HOP)
-    #    result = tf.reshape(result, [1,64,64,1])
-    #    results += [result]
-
-    #output = tf.concat(0, results)
     output = tf.reshape(output, [-1, 64,64,1])
     output = compose(output)
     return output
-def decode(input, bitrate=4096):
-    output = input
-    output = decompose(output)
-    output = tf.reshape(output, [-1, 64,64])
-    results = []
-
-    for i in range(input.get_shape()[0]):
-        print("stft decode layer", i)
-        result = tf.slice(output, [i, 0, 0], [1, -1, -1])
-        result = tf.reshape(result, [64,64]) 
-        result = istft(result, bitrate, HOP)
-        results += [tf.reshape(result, [-1])]
-
-    output = tf.concat(0, results)
-            
-    #output = tf.reshape(output, [-1])
-    #output = tf.ifft(output)
-    #print(output.get_shape())
-    return output
 
 def scale_up(input):
-
-    with tf.variable_scope('scale'):
-        #tf.get_variable_scope().reuse_variables()
-        output = tf.nn.tanh(input)
-        return decompose(input)*2e4
-        real, imag = tf.split(3, 2, output)
-        imag_sign = tf.sign(imag)
-        real_sign = tf.sign(real)
-        #sign_real = tf.get_variable('sign_real', real.get_shape(), initializer=tf.constant_initializer(1))
-        #sign_imag = tf.get_variable('sign_imag', imag.get_shape(), initializer=tf.constant_initializer(1))
-        #tf.assign(sign_real, tf.sign(real))
-        #tf.assign(sign_imag, tf.sign(imag))
-        #imag_sign = tf.sign(imag)*1
-        #real = tf.abs(1/tf.exp(real*(4.4*math.pi)))*sign_real#-min.real
-        #imag = tf.abs(1/tf.exp(imag*(4.4*math.pi)))*sign_imag#-min.imag
-        #real = 1/tf.minimum(tf.abs(real),1e-7)*real_sign#(tf.pow(real, 3.))*1e7#*1e7
-        #imag = 1/tf.minimum(tf.abs(imag),1e-7)*imag_sign#(tf.pow(imag, 3.))*1e7#*1e7
-
-        complex = tf.complex(real, imag)
-        return tf.concat(3, [complex])
-        #return 1/(tf.exp(output*4*math.pi))
-    #min = 32000+12000j
-    #max = 65000+32000j
-    #max = 50000+20000j
-
-    output = decompose(output)
-    max = 1000000+1000000j
-    return output*max#decompose(output*max)
-    #max = 70000+30000j
-    #max =  23000+0j
+    output = tf.nn.tanh(input)
+    return decompose(input)*2e4
 
 def build_fft_graph(input):
     return tf.ifft(input)
