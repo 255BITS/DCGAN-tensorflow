@@ -9,8 +9,29 @@ import math
 FRAME_SIZE=(64/2048)
 HOP=(2048-64)/(2048*64)
 
+
+def decode_sampler(input, bitrate=4096):
+    output = input
+    output = tf.reshape(output, [-1, 4096])
+    results = []
+    for i in range(int(output.get_shape()[0])):
+        print("Setting up sftf layer ", i, output.get_shape())
+        result = tf.slice(output, [i, 0], [1, -1])
+        #result = tf.reshape(result, [64,64])
+        result = tf.reshape(result, [-1])
+        result = tf.ifft(result)
+        #result = tf.reshape(result, [-1])
+        #result = tf.reshape(result,[-1])
+        results += [result]
+
+    output = tf.concat(0, results)
+    return output
+
+
 def stft(input, fs, framesz, hop):
     input = tf.reshape(input, [-1])
+    return tf.fft(input)
+    input =tf.reshape(input,[64,64])
     framesamp = int(framesz*fs)
     hopsamp = int(hop*fs)
     #print('hopsamp is', hopsamp, hop, fs)
@@ -127,7 +148,7 @@ def ifft(input):
     #    tf.reshape(output, shape)
     #    return output
 
-def encode(input,bitrate=2048):
+def encode(input,bitrate=4096):
     output = input
 
     #with tf.variable_scope('fft', reuse=None):
@@ -139,14 +160,15 @@ def encode(input,bitrate=2048):
         print("Setting up sftf layer ", i)
         result = tf.slice(output, [i, 0], [1, -1])
         result = stft(result,bitrate,FRAME_SIZE, HOP)
-        #result = tf.reshape(result, [1,64,64,1])
+        print('hello', output.get_shape(), result.get_shape())
+        result = tf.reshape(result, [1,64,64,1])
         results += [result]
 
     output = tf.concat(0, results)
     output = tf.reshape(output, [-1, 64,64,1])
     output = compose(output)
     return output
-def decode(input, bitrate=2048):
+def decode(input, bitrate=4096):
     output = input
     output = decompose(output)
     output = tf.reshape(output, [-1, 64,64])
@@ -167,9 +189,14 @@ def decode(input, bitrate=2048):
     return output
 
 def scale_up(input):
-    real, imag = tf.split(3, 2, tf.nn.tanh(input))
-    min = 32000+12000j
-    max = 32000+12000j
-    real = max.real*real-min.real
-    imag = max.imag*imag-min.imag
-    return tf.concat(3, [real, imag])
+    output = tf.nn.tanh(input)
+    real, imag = tf.split(3, 2, output)
+    #return 1/(tf.exp(output*4*math.pi))
+    #min = 32000+12000j
+    max = 65000+32000j
+    #max = 40000+15000j
+    #max = 70000+30000j
+    real = max.real*real#-min.real
+    imag = max.imag*imag#-min.imag
+    complex = tf.complex(real, imag)
+    return tf.concat(3, [complex])

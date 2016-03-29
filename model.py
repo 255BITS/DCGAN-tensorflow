@@ -9,7 +9,7 @@ import tensorflow_wav
 
 WAV_SIZE=64
 WAV_HEIGHT=64
-BITRATE=2048
+BITRATE=4096
 class DCGAN(object):
     def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
                  batch_size=64, sample_size = 2, wav_shape=[WAV_SIZE, WAV_HEIGHT, 2],
@@ -84,8 +84,10 @@ class DCGAN(object):
         self.D = self.discriminator(self.encoded_wavs, reuse=None)
 
         self.sampler = self.sampler(self.z)
-        self.sampler = tf.reshape(tensorflow_wav.decode(self.sampler),[-1])
-        self.D_ = self.discriminator(self.G, reuse=True)
+        self.sampler = tf.reshape(self.sampler,[-1])
+        self.sampler = tensorflow_wav.decode_sampler(self.sampler)
+        encoded_G = tensorflow_wav.compose(self.G)#tensorflow_wav.encode(self.G)
+        self.D_ = self.discriminator(encoded_G, reuse=True)
         
 
         #self.d_sum = tf.histogram_summary("d", self.D)
@@ -179,12 +181,12 @@ class DCGAN(object):
                     batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
                                 .astype(np.float32)
 
-                    if(errD_fake > 10):
-                        errd_range = 3
-                    elif(errD_fake > 8):
-                        errd_range = 2
-                    else:
-                        errd_range=1
+                    #if(errD_fake > 10):
+                    #    errd_range = 3
+                    #if(errD_fake > 8):
+                    #    errd_range = 2
+                    #else:
+                    errd_range=1
                     #print('min', 'max', 'mean', 'stddev', batch_wavs.min(), batch_wavs.max(), np.mean(batch_wavs), np.std(batch_wavs))
                     for repeat in range(errd_range):
                         #print("discrim ", errd_range)
@@ -194,10 +196,10 @@ class DCGAN(object):
                         #self.writer.add_summary(summary_str, counter)
 
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                    if(errG > 10):
-                        errg_range = 2
-                    else:
-                        errg_range=1
+                    #if(errG > 8):
+                    #    errg_range = 2
+                    #else:
+                    errg_range=1
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network
@@ -214,8 +216,8 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG))
 
-                    SAVE_COUNT=100
-                    SAMPLE_COUNT=10
+                    SAVE_COUNT=200
+                    SAMPLE_COUNT=50
                     
                     print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:

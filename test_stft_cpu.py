@@ -31,8 +31,9 @@ if __name__ == '__main__':
     wav_path="input.wav"
     wav= tensorflow_wav.get_wav(wav_path)
     fs=2048
-    T=1
+    T=100
     data = wav['data'][:fs*T]
+    print("data, max, mean, stddev",data.min(), data.max(), np.mean(data), np.std(data))
     #data['sampwidth']
     framesz=(64/2048)
     print("fs is ", fs)
@@ -47,11 +48,11 @@ if __name__ == '__main__':
 
     s = stft(data, fs, framesz, hop)
     #print(s)
-    print("min, max, mean, stddev",s.min(), s.max(), np.mean(s), np.std(s))
 
     T=1
     si = s
-    #si = istft(s, fs,T, hop)
+    si = istft(s, fs,T, hop)
+    print("simin, max, mean, stddev",si.min(), si.max(), np.mean(si), np.std(si))
     #print('wavdata is ', len(wav['data']))
 
     #print(si)
