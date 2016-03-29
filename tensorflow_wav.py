@@ -10,52 +10,6 @@ import pickle
 FRAME_SIZE=(64/2048)
 HOP=(2048-64)/(2048*64)
 
-
-def stft(input, fs, framesz, hop):
-    #input = tf.reshape(input, [-1])
-    #return tf.fft(input)
-    #return input
-    #return tf.fft(input)
-    input =tf.reshape(input,[64,64])
-    framesamp = int(framesz*fs)
-    hopsamp = int(hop*fs)
-    #print('hopsamp is', hopsamp, hop, fs)
-    #print('framesamp is', framesamp)
-    #print("elemes", input.get_shape()[-1]-framesamp, (int(input.get_shape()[-1])-framesamp)/hopsamp)
-    w = scipy.hanning(framesamp)
-
-    def do_fft(w, input, i, n):
-        #print("adding fft node for ", i, framesamp)
-        slice = tf.slice(input, [i], [framesamp])
-        slice = fft(slice*w)
-        return slice
-    X = [do_fft(w, input, i, i+framesamp)
-                     for i in range(0, input.get_shape()[-1]-framesamp, hopsamp)]
-    return tf.concat(0,X)
-
-def istft(X, fs, hop):
-    height  = int(X.get_shape()[1])
-    width = int(X.get_shape()[0])
-    T=1
-    length = T*fs
-    output = tf.zeros([fs*T], dtype='complex64')
-
-    hopsamp = int(hop*fs)
-    def do_ifft(X, n,i):
-        #print("BUILDING SLICE", n,i)
-        res = tf.slice(X, [n, 0], [1, height])
-        res = ifft(tf.reshape(res, [-1]))
-        pre = tf.zeros([i], dtype='complex64')
-        post = tf.zeros([length-i-height], dtype='complex64')
-        to_add = tf.concat(0, [pre, res*(1+0j), post])
-        return tf.add(output, to_add)
-    iterator = enumerate(range(0, length-height, hopsamp))
-    for n,i in iterator:
-        output = do_ifft(X,n,i)
-    output= tf.reshape(output, [-1])
-    print(output.get_shape())
-    return output
-
 # Returns the file object in complex64
 def get_wav(path):
 
@@ -68,7 +22,6 @@ def get_wav(path):
     results['framerate']=wav.getframerate()
     results['nframes']=wav.getnframes()
     results['compname']=wav.getcompname()
-    # process fft in tf
     processed = np.array(data).astype(np.complex64, copy=False)
     results['data']=processed
     return results
@@ -84,12 +37,12 @@ def save_wav(in_wav, path):
     wav.setnframes(in_wav['nframes'])
 
     wav.setcomptype('NONE', 'processed')
-    # process ifft in tf
 
     processed = np.array(in_wav['data'], dtype=np.int16)
     wav.writeframes(processed)
 
 def save_stft(in_wav, path):
+    in_wav['data'] = in_wav['data']/(1e7+1e7j)
     f = open(path, "wb")
     try:
         pickle.dump(in_wav, f, pickle.HIGHEST_PROTOCOL)
@@ -99,6 +52,7 @@ def save_stft(in_wav, path):
 def get_stft(filename):
     f = open(filename, "rb")
     data = pickle.load(f)
+    data['data'] = data['data']*(1e7+1e7j)
     f.close()
     return data
 
@@ -121,8 +75,5 @@ def encode(input,bitrate=4096):
 
 def scale_up(input):
     output = tf.nn.tanh(input)
-    return decompose(input)*2e4
-
-def build_fft_graph(input):
-    return tf.ifft(input)
+    return decompose(input)#*2e4
 
