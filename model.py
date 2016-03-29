@@ -9,12 +9,15 @@ import tensorflow_wav
 
 WAV_SIZE=64
 WAV_HEIGHT=64
-BITRATE=2048
+WAV_LENGTH=1
+BITRATE=4096
+WAV_WIDTH=int(BITRATE*WAV_LENGTH/WAV_HEIGHT)
+
 class DCGAN(object):
     def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
-                 batch_size=64, sample_size = 2, wav_shape=[WAV_SIZE, WAV_HEIGHT, 2],
-                 y_dim=None, z_dim=64, gf_dim=64, df_dim=64,
-                 gfc_dim=1024, dfc_dim=1024, c_dim=2, dataset_name='default',
+                 batch_size=64, sample_size = 2, wav_shape=[WAV_WIDTH, WAV_HEIGHT, 1],
+                 y_dim=None, z_dim=64, gf_dim=32, df_dim=32,
+                 gfc_dim=1024, dfc_dim=1024, c_dim=1, dataset_name='default',
                  checkpoint_dir='checkpoint'):
         """
 
@@ -69,22 +72,23 @@ class DCGAN(object):
         if self.y_dim:
             self.y= tf.placeholder(tf.float32, [None, self.y_dim], name='y')
 
-        self.wavs = tf.placeholder(tf.complex64, [self.batch_size, BITRATE],
+        self.wavs = tf.placeholder(tf.float32, [self.batch_size, WAV_LENGTH*BITRATE],
                                     name='real_wavs')
 
         self.z = tf.placeholder(tf.float32, [None, self.z_dim],
                                 name='z')
 
-        self.encoded_wavs=tensorflow_wav.encode(self.wavs)
-        self.encoded_wavs = tf.reshape(self.encoded_wavs, [self.batch_size]+self.wav_shape)
+        #self.encoded_wavs=tensorflow_wav.encode(self.wavs)
+        #self.encoded_wavs = tf.reshape(self.encoded_wavs, [self.batch_size]+self.wav_shape)
         #self.z_sum = tf.histogram_summary("z", self.z)
 
+        print("shapes d_wav", self.wav_shape, self.wavs.get_shape())
+        d_wav = tf.reshape(self.wavs, [self.batch_size] + self.wav_shape)
         self.G = self.generator(self.z)
-        print("G is", self.G.get_shape(), self.encoded_wavs.get_shape())
-        self.D = self.discriminator(self.encoded_wavs, reuse=None)
+        print("G is", self.G.get_shape(), d_wav.get_shape())
+        self.D = self.discriminator(d_wav, reuse=None)
 
         self.sampler = self.sampler(self.z)
-        self.sampler = tf.reshape(tensorflow_wav.decode(self.sampler),[-1])
         self.D_ = self.discriminator(self.G, reuse=True)
         
 
@@ -159,7 +163,7 @@ class DCGAN(object):
                 batch_item = wavobj['data']
                 print(batch_item, len(batch_item))
 
-                max_items = int(len(batch_item)/BITRATE/config.batch_size)*BITRATE * config.batch_size
+                max_items = int(len(batch_item)/(BITRATE*WAV_LENGTH)/config.batch_size)*(WAV_LENGTH*BITRATE) * config.batch_size
                 batch_item = batch_item[:max_items]
                 #print(max_items)
                 #print(len(batch_item))
@@ -168,8 +172,9 @@ class DCGAN(object):
                 # Are we properly getting the values?  We can output to a file to be sure 'sanity.wav'
 
                 print(max_items)
-                batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, BITRATE])
-                sample_wavs = sample_wavs[:max_items].reshape([-1, config.batch_size, BITRATE])
+                print("batch shape", WAV_WIDTH*WAV_HEIGHT, np.shape(batch_item))
+                batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, WAV_HEIGHT*WAV_WIDTH])
+                sample_wavs = sample_wavs[:max_items].reshape([-1, config.batch_size, WAV_HEIGHT*WAV_WIDTH])
                 batch_idxs+=1
                 errD_fake = 0
                 errD_real = 0
@@ -214,8 +219,8 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG))
 
-                    SAVE_COUNT=100
-                    SAMPLE_COUNT=10
+                    SAVE_COUNT=400
+                    SAMPLE_COUNT=50
                     
                     print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
@@ -224,7 +229,7 @@ class DCGAN(object):
                         all_samples = []
                         bz = sample_z
                         for i in range(3):
-                            bz = np.random.normal(0.5, 0.5, [config.batch_size, self.z_dim]) \
+                            bz = np.random.normal(-1, 1, [config.batch_size, self.z_dim]) \
                             #        .astype(np.float32)
                             #print(np.shape(sample_wavs[0]), np.shape(sample_z))
                             samples = self.sess.run(
@@ -233,9 +238,9 @@ class DCGAN(object):
                             )
                             all_samples += [samples]
                         samplewav = sample.copy()
-                        samplewav['data']=all_samples#[:WAV_HEIGHT*WAV_SIZE]
+                        samplewav['data']=all_samples[0]
                         #print(samples)
-                        filename = "./samples/%s_%s_train.png"% (epoch, idx)
+                        filename = "./samples/%s_%s_train.wav"% (epoch, idx)
                         data = np.array(samplewav['data'])
                         tensorflow_wav.save_wav(samplewav, filename )
                         print("[Sample] min %d max %d avg %d mean %d stddev %d" % (data.min(), data.max(), np.average(data), np.mean(data), np.std(data)))
@@ -276,27 +281,27 @@ class DCGAN(object):
             print('z_', z.get_shape())
             print('self.h0_w', self.h0_w.get_shape())
 
-            self.h0 = tf.reshape(self.z_, [self.batch_size, 4, 4, self.gf_dim * 8])
+            self.h0 = tf.reshape(self.z_, [self.batch_size, int(WAV_WIDTH/16), int(WAV_HEIGHT/16) , self.gf_dim * 8])
             h0 = tf.nn.relu(self.g_bn0(self.h0))
             print('h0',h0.get_shape())
 
             self.h1, self.h1_w, self.h1_b = deconv2d(h0, 
-                    [self.batch_size, 8, 8, self.gf_dim*4], name='g_h1', with_w=True)
+                    [self.batch_size, int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1', with_w=True)
             h1 = tf.nn.relu(self.g_bn1(self.h1))
             print('h1',h1.get_shape())
 
             h2, self.h2_w, self.h2_b = deconv2d(h1,
-                    [self.batch_size, 16, 16, self.gf_dim*2], name='g_h2', with_w=True)
+                    [self.batch_size, int(WAV_WIDTH/4), int(WAV_HEIGHT/4), self.gf_dim*2], name='g_h2', with_w=True)
             h2 = tf.nn.relu(self.g_bn2(h2))
             print('h2',h2.get_shape())
 
             h3, self.h3_w, self.h3_b = deconv2d(h2,
-                    [self.batch_size, 32, 32, self.gf_dim], name='g_h3', with_w=True)
+                    [self.batch_size, int(WAV_WIDTH/2), int(WAV_HEIGHT/2), self.gf_dim], name='g_h3', with_w=True)
             h3 = tf.nn.relu(self.g_bn3(h3))
             print('h3',h3.get_shape())
 
             h4= deconv2d(h3,
-                    [self.batch_size, WAV_SIZE, WAV_HEIGHT, 2], name='g_h4', with_w=False, no_bias=False)
+                    [self.batch_size, WAV_WIDTH, WAV_HEIGHT, 1], name='g_h4', with_w=False, no_bias=False)
 
             print('h4',h4.get_shape())
             tanh = tf.nn.tanh(h4)
@@ -313,19 +318,19 @@ class DCGAN(object):
             h0 = tf.nn.relu(self.g_bn0(h0, train=False))
             print('h0', h0.get_shape())
 
-            h1 = deconv2d(h0, [self.batch_size, 8, 8, self.gf_dim*4], name='g_h1')
+            h1 = deconv2d(h0, [self.batch_size,int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1')
             h1 = tf.nn.relu(self.g_bn1(h1, train=False))
             print('h1', h1.get_shape())
 
-            h2 = deconv2d(h1, [self.batch_size, 16, 16, self.gf_dim*2], name='g_h2')
+            h2 = deconv2d(h1, [self.batch_size,int(WAV_WIDTH/4), int(WAV_HEIGHT/4), self.gf_dim*2], name='g_h2')
             h2 = tf.nn.relu(self.g_bn2(h2, train=False))
             print('h2', h2.get_shape())
 
-            h3 = deconv2d(h2, [self.batch_size, 32, 32, self.gf_dim], name='g_h3')
+            h3 = deconv2d(h2, [self.batch_size, int(WAV_WIDTH/2), int(WAV_HEIGHT/2), self.gf_dim], name='g_h3')
             h3 = tf.nn.relu(self.g_bn3(h3, train=False))
             print('h3', h3.get_shape())
 
-            h4 = deconv2d(h3, [self.batch_size, 64, 64, 2], name='g_h4', no_bias=False)
+            h4 = deconv2d(h3, [self.batch_size, WAV_WIDTH, WAV_HEIGHT, 1], name='g_h4', no_bias=False)
             print('h4', h4.get_shape())
 
             #tanh = tf.nn.tanh(h4)

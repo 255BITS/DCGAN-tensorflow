@@ -30,16 +30,19 @@ def istft(X, fs, T, hop):
 if __name__ == '__main__':
     wav_path="input.wav"
     wav= tensorflow_wav.get_wav(wav_path)
-    fs=2048
-    T=10
+    fs=8196/4
+    T=10.
+    x=128.
+    y=128.
+    l=T*fs
     s = wav['data']
     print("DATA min, max, mean, stddev",s.min(), s.max(), np.mean(s), np.std(s))
     data = wav['data'][:fs*T]
     #data['sampwidth']
-    framesz=(64/2048.)
+    framesz=(x/fs)/2.
     print("fs is ", fs)
     print("Framesz is", framesz)
-    hop=(2048.-64)/(2048*64)
+    hop=2*(fs)/(fs*y)
     print("Hop is", hop)
     framesamp = int(framesz*fs)
     hopsamp = int(hop*fs)

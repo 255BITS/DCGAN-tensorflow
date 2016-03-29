@@ -133,34 +133,34 @@ def encode(input,bitrate=2048):
 
     #with tf.variable_scope('fft', reuse=None):
     #    stored_n = tf.get_variable("fft_n", [1], dtype=tf.float32, initializer=tf.constant_initializer(0.0))
-    results = []
-    print("SHAPE IS", input.get_shape())
-    output = tf.reshape(output, [-1, bitrate])
-    for i in range(int(input.get_shape()[0])):
-        print("Setting up sftf layer ", i)
-        result = tf.slice(output, [i, 0], [1, -1])
-        result = stft(result,bitrate,FRAME_SIZE, HOP)
-        #result = tf.reshape(result, [1,64,64,1])
-        results += [result]
+    #results = []
+    #print("SHAPE IS", input.get_shape())
+    #output = tf.reshape(output, [-1, bitrate])
+    #for i in range(int(input.get_shape()[0])):
+    #    print("Setting up sftf layer ", i)
+    #    result = tf.slice(output, [i, 0], [1, -1])
+    #    result = stft(result,bitrate,FRAME_SIZE, HOP)
+    #    #result = tf.reshape(result, [1,64,64,1])
+    #    results += [result]
 
-    output = tf.concat(0, results)
-    output = tf.reshape(output, [-1, 64,64,1])
+    #output = tf.concat(0, results)
+    output = tf.reshape(output, [-1, 32,64,1])
     output = compose(output)
     return output
 def decode(input, bitrate=2048):
     output = input
     output = decompose(output)
-    output = tf.reshape(output, [-1, 64,64])
-    results = []
+    output = tf.reshape(output, [-1, 32,64])
+    #results = []
 
-    for i in range(input.get_shape()[0]):
-        print("stft decode layer", i)
-        result = tf.slice(output, [i, 0, 0], [1, -1, -1])
-        result = tf.reshape(result, [64,64]) 
-        result = istft(result, bitrate, HOP)
-        results += [tf.reshape(result, [-1])]
+    #for i in range(input.get_shape()[0]):
+    #    print("stft decode layer", i)
+    #    result = tf.slice(output, [i, 0, 0], [1, -1, -1])
+    #    result = tf.reshape(result, [64,64]) 
+    #    result = istft(result, bitrate, HOP)
+    #    results += [tf.reshape(result, [-1])]
 
-    output = tf.concat(0, results)
+    #output = tf.concat(0, results)
             
     #output = tf.reshape(output, [-1])
     #output = tf.ifft(output)
@@ -168,9 +168,7 @@ def decode(input, bitrate=2048):
     return output
 
 def scale_up(input):
-    real, imag = tf.split(3, 2, tf.nn.tanh(input))
-    min = 22248+0j
-    max = 21773+0j
-    real = max.real*real-min.real
-    imag = max.imag*imag-min.imag
-    return tf.concat(3, [real, imag])
+    real = tf.nn.tanh(input)
+    scale = 23000
+    i_scale = 0
+    return scale*real
