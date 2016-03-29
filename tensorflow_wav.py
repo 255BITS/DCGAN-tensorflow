@@ -208,9 +208,12 @@ def decode(input, bitrate=4096):
 def scale_up(input):
 
     with tf.variable_scope('scale'):
-        tf.get_variable_scope().reuse_variables()
+        #tf.get_variable_scope().reuse_variables()
         output = tf.nn.tanh(input)
+        return decompose(input*1e5)
         real, imag = tf.split(3, 2, output)
+        imag_sign = tf.sign(imag)
+        real_sign = tf.sign(real)
         #sign_real = tf.get_variable('sign_real', real.get_shape(), initializer=tf.constant_initializer(1))
         #sign_imag = tf.get_variable('sign_imag', imag.get_shape(), initializer=tf.constant_initializer(1))
         #tf.assign(sign_real, tf.sign(real))
@@ -218,8 +221,8 @@ def scale_up(input):
         #imag_sign = tf.sign(imag)*1
         #real = tf.abs(1/tf.exp(real*(4.4*math.pi)))*sign_real#-min.real
         #imag = tf.abs(1/tf.exp(imag*(4.4*math.pi)))*sign_imag#-min.imag
-        real = (tf.pow(real, 3.))*1e7#*1e7
-        imag = (tf.pow(imag, 3.))*1e7#*1e7
+        #real = 1/tf.minimum(tf.abs(real),1e-7)*real_sign#(tf.pow(real, 3.))*1e7#*1e7
+        #imag = 1/tf.minimum(tf.abs(imag),1e-7)*imag_sign#(tf.pow(imag, 3.))*1e7#*1e7
 
         complex = tf.complex(real, imag)
         return tf.concat(3, [complex])

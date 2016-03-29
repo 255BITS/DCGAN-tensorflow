@@ -210,7 +210,7 @@ class DCGAN(object):
                     #if(errG > 8):
                     #    errg_range = 2
                     #else:
-                    errg_range=1
+                    errg_range=2
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network
