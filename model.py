@@ -256,6 +256,15 @@ class DCGAN(object):
                         print("Saving !")
                         self.save(config.checkpoint_dir, counter)
 
+    def sample(self, bz=None):
+        if(bz == None):
+            bz = np.random.normal(0, 0.5, [self.batch_size, self.z_dim]) 
+        result = self.sess.run(
+            self.sampler,
+            feed_dict={self.z: bz}
+        )
+        return result
+
 
     def discriminator(self, wav, reuse=False, y=None):
         if reuse:
