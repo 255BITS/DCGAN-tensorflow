@@ -7,6 +7,7 @@ import os
 import sys
 import tensorflow_wav
 import numpy as np
+import math
 if(len(sys.argv)<2):
     print("You have to pick a file")
     no_file_Picked_Exception
@@ -22,9 +23,11 @@ for file in files:
     nframes = wav['nframes']
     print('shape', wav['data'].shape)
     time = 192
+    print(np.min(wav['data']), np.max(wav['data']), np.mean(wav['data']), np.std(wav['data']))
+    #wav['data'] = np.exp(wav['data'])
     data = istft(wav['data'],fs, time, hop)
-    print(wav)
-    wav['data']=data
-    print(np.min(data), np.max(data))
+    wav['data'] = data*3
+    #print(wav)
+    #wav['data'] = np.sign(wav['data'])*np.sqrt(wav['data'])
     res= tensorflow_wav.save_wav(wav, file+".istft")
     print(file+".istft"+" is written")

@@ -12,9 +12,9 @@ WAV_HEIGHT=64
 BITRATE=4096
 class DCGAN(object):
     def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
-                 batch_size=64, sample_size = 2, wav_shape=[WAV_SIZE, WAV_HEIGHT, 2],
+                 batch_size=64, sample_size = 2, wav_shape=[WAV_SIZE, WAV_HEIGHT, 1],
                  y_dim=None, z_dim=64, gf_dim=64, df_dim=64,
-                 gfc_dim=1024, dfc_dim=1024, c_dim=2, dataset_name='default',
+                 gfc_dim=1024, dfc_dim=1024, c_dim=1, dataset_name='default',
                  checkpoint_dir='checkpoint'):
         """
 
@@ -74,7 +74,7 @@ class DCGAN(object):
         if self.y_dim:
             self.y= tf.placeholder(tf.float32, [None, self.y_dim], name='y')
 
-        self.wavs = tf.placeholder(tf.complex64, [self.batch_size, BITRATE],
+        self.wavs = tf.placeholder(tf.float32, [self.batch_size, BITRATE],
                                     name='real_wavs')
 
         self.z = tf.placeholder(tf.float32, [None, self.z_dim],
@@ -91,7 +91,7 @@ class DCGAN(object):
         self.sampler = self.sampler(self.z)
         self.sampler = tf.reshape(self.sampler,[-1])
         #self.sampler = tensorflow_wav.decode(self.sampler)
-        encoded_G = tensorflow_wav.compose(self.G)#tensorflow_wav.encode(self.G)
+        encoded_G = self.G#tensorflow_wav.encode(self.G)
         self.D_ = self.discriminator(encoded_G, reuse=True)
         
 
@@ -202,14 +202,12 @@ class DCGAN(object):
                     for repeat in range(errd_range):
                         #print("discrim ", errd_range)
                         # Update D network
+                        print("Running discriminator with min/max", batch_wavs.min(), batch_wavs.max())
                         _= self.sess.run([d_optim],
                             feed_dict={ self.wavs: batch_wavs, self.z: batch_z })
                         #self.writer.add_summary(summary_str, counter)
 
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                    #if(errG > 8):
-                    #    errg_range = 2
-                    #else:
                     errg_range=1
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
@@ -227,8 +225,8 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG))
 
-                    SAVE_COUNT=100
-                    SAMPLE_COUNT=20
+                    SAVE_COUNT=500
+                    SAMPLE_COUNT=100
                     
                     print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
@@ -309,7 +307,7 @@ class DCGAN(object):
             print('h3',h3.get_shape())
 
             h4= deconv2d(h3,
-                    [self.batch_size, WAV_SIZE, WAV_HEIGHT, 2], name='g_h4', with_w=False, no_bias=False)
+                    [self.batch_size, WAV_SIZE, WAV_HEIGHT, 1], name='g_h4', with_w=False, no_bias=False)
 
             print('h4',h4.get_shape())
             tanh = tf.nn.tanh(h4)
@@ -338,7 +336,7 @@ class DCGAN(object):
             h3 = tf.nn.relu(self.g_bn3(h3, train=False))
             print('h3', h3.get_shape())
 
-            h4 = deconv2d(h3, [self.batch_size, 64, 64, 2], name='g_h4', no_bias=False)
+            h4 = deconv2d(h3, [self.batch_size, 64, 64, 1], name='g_h4', no_bias=False)
             print('h4', h4.get_shape())
 
             #tanh = tf.nn.tanh(h4)

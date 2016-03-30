@@ -42,7 +42,6 @@ def save_wav(in_wav, path):
     wav.writeframes(processed)
 
 def save_stft(in_wav, path):
-    in_wav['data'] = in_wav['data']/(1e7+1e7j)
     f = open(path, "wb")
     try:
         pickle.dump(in_wav, f, pickle.HIGHEST_PROTOCOL)
@@ -52,16 +51,12 @@ def save_stft(in_wav, path):
 def get_stft(filename):
     f = open(filename, "rb")
     data = pickle.load(f)
-    data['data'] = data['data']*(1e7+1e7j)
     f.close()
     return data
 
 
-def decompose(input, rank=3):
-    real, imag = tf.split(rank, 2, input)
-    complex = tf.complex(real, imag)
-    return complex
 def compose(input, rank=3):
+    return input
     real = tf.real(input)
     imag = tf.imag(input)
     return tf.concat(rank, [real, imag])
@@ -74,6 +69,6 @@ def encode(input,bitrate=4096):
     return output
 
 def scale_up(input):
-    output = tf.nn.tanh(input)
-    return decompose(input)#*2e4
+    output = tf.nn.tanh(input)*(65535)
+    return output
 
