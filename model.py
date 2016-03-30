@@ -202,7 +202,7 @@ class DCGAN(object):
                     for repeat in range(errd_range):
                         #print("discrim ", errd_range)
                         # Update D network
-                        print("Running discriminator with min/max", batch_wavs.min(), batch_wavs.max())
+                        #print("Running discriminator with min/max", batch_wavs.min(), batch_wavs.max())
                         _= self.sess.run([d_optim],
                             feed_dict={ self.wavs: batch_wavs, self.z: batch_z })
                         #self.writer.add_summary(summary_str, counter)
@@ -228,7 +228,6 @@ class DCGAN(object):
                     SAVE_COUNT=10
                     SAMPLE_COUNT=1e10
                     
-                    print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
                         print("Saving after next batch")
                     if np.mod(counter,SAMPLE_COUNT) == SAMPLE_COUNT-2:
