@@ -169,6 +169,6 @@ def decode(input, bitrate=2048):
 
 def scale_up(input):
     real = tf.nn.tanh(input)
-    scale = 23000
+    scale = 2000
     i_scale = 0
     return scale*real

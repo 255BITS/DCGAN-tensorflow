@@ -127,13 +127,13 @@ class DCGAN(object):
         g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
                           .minimize(self.g_loss, var_list=self.g_vars)
 
+
         self.saver = tf.train.Saver()
         #self.g_sum = tf.merge_summary([self.z_sum, self.d__sum, 
         #    self.d_loss_fake_sum, self.g_loss_sum])
         #self.d_sum = tf.merge_summary([self.z_sum, self.d_sum, self.d_loss_real_sum, self.d_loss_sum])
         #self.writer = tf.train.SummaryWriter("./logs", self.sess.graph_def)
 
-        sample_z = np.random.uniform(-1, 1, size=(self.batch_size , self.z_dim))
         sample_file = data[0]
         sample =tensorflow_wav.get_wav(sample_file)#get_wav(sample_file, self.wav_size, is_crop=self.is_crop) #[get_wav(sample_file, self.wav_size, is_crop=self.is_crop) for sample_file in sample_files]
         sample_wavs = np.array(sample['data'])
@@ -227,15 +227,9 @@ class DCGAN(object):
                         print("Saving after next batch")
                     if np.mod(counter,SAMPLE_COUNT) == SAMPLE_COUNT-2:
                         all_samples = []
-                        bz = sample_z
                         for i in range(3):
-                            bz = np.random.normal(-1, 1, [config.batch_size, self.z_dim]) \
-                            #        .astype(np.float32)
-                            #print(np.shape(sample_wavs[0]), np.shape(sample_z))
-                            samples = self.sess.run(
-                                self.sampler,
-                                feed_dict={self.z: bz}
-                            )
+                            samples = self.sample()
+
                             all_samples += [samples]
                         samplewav = sample.copy()
                         samplewav['data']=all_samples[0]
@@ -250,6 +244,15 @@ class DCGAN(object):
                         print("Saving !")
                         self.save(config.checkpoint_dir, counter)
 
+
+    def sample(self, bz=None):
+        if(bz == None):
+            bz = np.random.normal(0, 0.5, [self.batch_size, self.z_dim]) 
+        result = self.sess.run(
+            self.sampler,
+            feed_dict={self.z: bz}
+        )
+        return result
 
     def discriminator(self, wav, reuse=False, y=None):
         if reuse:
