@@ -22,7 +22,7 @@ def get_wav(path):
     results['framerate']=wav.getframerate()
     results['nframes']=wav.getnframes()
     results['compname']=wav.getcompname()
-    processed = np.array(data).astype(np.complex64, copy=False)
+    processed = np.array(data).astype(np.int16, copy=False)
     results['data']=processed
     return results
 

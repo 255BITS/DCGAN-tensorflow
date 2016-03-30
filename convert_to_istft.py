@@ -22,11 +22,12 @@ for file in files:
     wav= tensorflow_wav.get_stft(file)
     nframes = wav['nframes']
     print('shape', wav['data'].shape)
-    time = 192
-    print(np.min(wav['data']), np.max(wav['data']), np.mean(wav['data']), np.std(wav['data']))
+    time = np.shape(np.reshape(wav['data'],[-1]))[0]/4096
+    print(np.shape(wav['data']))
+    #print(np.min(wav['data']), np.max(wav['data']), np.mean(wav['data']), np.std(wav['data']))
     #wav['data'] = np.exp(wav['data'])
     data = istft(wav['data'],fs, time, hop)
-    wav['data'] = data*3
+    wav['data'] = data*6
     #print(wav)
     #wav['data'] = np.sign(wav['data'])*np.sqrt(wav['data'])
     res= tensorflow_wav.save_wav(wav, file+".istft")

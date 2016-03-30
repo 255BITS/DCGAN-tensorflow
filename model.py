@@ -9,7 +9,7 @@ import tensorflow_wav
 
 WAV_SIZE=64
 WAV_HEIGHT=64
-BITRATE=4096
+BITRATE=4096  # this is not the bitrate with stft
 class DCGAN(object):
     def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
                  batch_size=64, sample_size = 2, wav_shape=[WAV_SIZE, WAV_HEIGHT, 1],
@@ -225,8 +225,8 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG))
 
-                    SAVE_COUNT=500
-                    SAMPLE_COUNT=100
+                    SAVE_COUNT=10
+                    SAMPLE_COUNT=1e10
                     
                     print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
@@ -261,7 +261,7 @@ class DCGAN(object):
 
     def sample(self, bz=None):
         if(bz == None):
-            bz = np.random.normal(0, 0.5, [self.batch_size, self.z_dim]) 
+            bz = np.random.normal(0, 1, [self.batch_size, self.z_dim]) 
         result = self.sess.run(
             self.sampler,
             feed_dict={self.z: bz}

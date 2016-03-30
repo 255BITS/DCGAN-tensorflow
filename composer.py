@@ -11,9 +11,9 @@ import tensorflow_wav
 dataset="audio"
 wav_size=64
 is_crop=False
-batch_size=10
+batch_size=128
 checkpoint_dir="checkpoint"
-bitrate=2048
+bitrate=4096 # this is not the bitrate with stft
 
 with tf.Session() as sess:
     with tf.device('/cpu:0'):
@@ -24,19 +24,21 @@ with tf.Session() as sess:
         data = glob(os.path.join("./training", "*.wav"))
         sample_file = data[0]
         sample =tensorflow_wav.get_wav(sample_file)
+        print(sample)
 
         full_audio = []
-        for i in range(120):
+        for i in range(1):
             audio = dcgan.sample()
 
             audio = np.reshape(audio,[-1])
             print("Audio shape", np.shape(audio))
-            full_audio += audio[:bitrate].tolist()
+            full_audio += audio[:bitrate*batch_size].tolist()
             print("Full audio shape", np.shape(full_audio))
 
         samplewav = sample.copy()
         samplewav
-        samplewav['data']=np.array(full_audio)
+        print("Generated stats 'min', 'max', 'mean', 'stddev'", np.min(full_audio), np.max(full_audio), np.mean(full_audio), np.std(full_audio))
+        samplewav['data']=np.reshape(np.array(full_audio), [-1, 64])
         print("samplewav shape", np.shape(samplewav['data']))
 
         filename = "./compositions/song.wav.stft"
