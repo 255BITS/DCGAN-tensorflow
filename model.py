@@ -241,8 +241,11 @@ class DCGAN(object):
                         print("[Sample] saved in "+ filename)
 
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-2:
-                        print("Saving !")
-                        self.save(config.checkpoint_dir, counter)
+                        if(errD_fake == 0 or errD_fake > 23 or errG > 23):
+                            print("Refusing to save, error rate above threshold")
+                        else:
+                            print("Saving !")
+                            self.save(config.checkpoint_dir, counter)
 
 
     def sample(self, bz=None):
