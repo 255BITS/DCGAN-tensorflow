@@ -8,10 +8,10 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="exp"
+dataset="audiohd"
 wav_size=64
 is_crop=False
-batch_size=128
+batch_size=16
 checkpoint_dir="checkpoint"
 bitrate=4096
 
@@ -26,12 +26,13 @@ with tf.Session() as sess:
       sample =tensorflow_wav.get_wav(sample_file)
 
       full_audio = []
-      for i in range(20):
+      for i in range(10):
         audio = dcgan.sample()
-
-        audio = np.reshape(audio,[-1])
         print("Audio shape", np.shape(audio))
-        full_audio += audio.tolist()
+
+        audio = np.reshape(audio,[-1, 3])
+        print("WAV shape", np.shape(audio[:,0]))
+        full_audio += audio[:,0].tolist()
         print("Full audio shape", np.shape(full_audio))
 
       samplewav = sample.copy()

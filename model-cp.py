@@ -12,11 +12,10 @@ WAV_HEIGHT=64
 WAV_LENGTH=1
 BITRATE=4096
 WAV_WIDTH=int(BITRATE*WAV_LENGTH/WAV_HEIGHT)
-DIMENSIONS=3
 
 class DCGAN(object):
     def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
-                 batch_size=64, sample_size = 2, wav_shape=[WAV_WIDTH, WAV_HEIGHT, DIMENSIONS],
+                 batch_size=64, sample_size = 2, wav_shape=[WAV_WIDTH, WAV_HEIGHT, 1],
                  y_dim=None, z_dim=64, gf_dim=32, df_dim=32,
                  gfc_dim=1024, dfc_dim=1024, c_dim=1, dataset_name='default',
                  checkpoint_dir='checkpoint'):
@@ -73,7 +72,7 @@ class DCGAN(object):
         if self.y_dim:
             self.y= tf.placeholder(tf.float32, [None, self.y_dim], name='y')
 
-        self.wavs = tf.placeholder(tf.float32, [self.batch_size, WAV_LENGTH*BITRATE, DIMENSIONS],
+        self.wavs = tf.placeholder(tf.float32, [self.batch_size, WAV_LENGTH*BITRATE],
                                     name='real_wavs')
 
         self.z = tf.placeholder(tf.float32, [None, self.z_dim],
@@ -117,7 +116,7 @@ class DCGAN(object):
 
     def train(self, config):
         """Train DCGAN"""
-        data = glob(os.path.join("./training", "*.mlaudio"))
+        data = glob(os.path.join("./training", "*.wav"))
         print(data)
         #np.random.shuffle(data)
 
@@ -136,7 +135,7 @@ class DCGAN(object):
         #self.writer = tf.train.SummaryWriter("./logs", self.sess.graph_def)
 
         sample_file = data[0]
-        sample =tensorflow_wav.get_pre(sample_file)#get_wav(sample_file, self.wav_size, is_crop=self.is_crop) #[get_wav(sample_file, self.wav_size, is_crop=self.is_crop) for sample_file in sample_files]
+        sample =tensorflow_wav.get_wav(sample_file)#get_wav(sample_file, self.wav_size, is_crop=self.is_crop) #[get_wav(sample_file, self.wav_size, is_crop=self.is_crop) for sample_file in sample_files]
         sample_wavs = np.array(sample['data'])
 
         counter = 1
@@ -150,12 +149,12 @@ class DCGAN(object):
         print('epoch', config.epoch)
 
         for epoch in range(config.epoch):
-            batch_files = glob(os.path.join("./training", "*.mlaudio"))
+            batch_files = glob(os.path.join("./training", "*.wav"))
 
             def get_wav_content(files):
                 for filee in files:
                     print("Yielding ", filee)
-                    yield tensorflow_wav.get_pre(filee)
+                    yield tensorflow_wav.get_wav(filee)
 
             #print(batch)
             idx=0
@@ -174,8 +173,8 @@ class DCGAN(object):
 
                 print(max_items)
                 print("batch shape", WAV_WIDTH*WAV_HEIGHT, np.shape(batch_item))
-                batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, WAV_HEIGHT*WAV_WIDTH, DIMENSIONS])
-                sample_wavs = sample_wavs[:max_items].reshape([-1, config.batch_size, WAV_HEIGHT*WAV_WIDTH, DIMENSIONS])
+                batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, WAV_HEIGHT*WAV_WIDTH])
+                sample_wavs = sample_wavs[:max_items].reshape([-1, config.batch_size, WAV_HEIGHT*WAV_WIDTH])
                 batch_idxs+=1
                 errD_fake = 0
                 errD_real = 0
@@ -220,8 +219,8 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG))
 
-                    SAVE_COUNT=50
-                    SAMPLE_COUNT=1e10
+                    SAVE_COUNT=400
+                    SAMPLE_COUNT=50
                     
                     print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
@@ -236,22 +235,19 @@ class DCGAN(object):
                         samplewav['data']=all_samples[0]
                         #print(samples)
                         filename = "./samples/%s_%s_train.wav"% (epoch, idx)
-                        data = np.array(samplewav['data'][0])
+                        data = np.array(samplewav['data'])
                         tensorflow_wav.save_wav(samplewav, filename )
                         print("[Sample] min %d max %d avg %d mean %d stddev %d" % (data.min(), data.max(), np.average(data), np.mean(data), np.std(data)))
                         print("[Sample] saved in "+ filename)
 
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-2:
-                        if(errD_fake == 0 or errD_fake > 23 or errG > 23):
-                            print("Refusing to save, error rate above threshold")
-                        else:
-                            print("Saving !")
-                            self.save(config.checkpoint_dir, counter)
+                        print("Saving !")
+                        self.save(config.checkpoint_dir, counter)
 
 
     def sample(self, bz=None):
         if(bz == None):
-            bz = np.random.uniform(-1, 1, [self.batch_size, self.z_dim]) 
+            bz = np.random.normal(0, 0.5, [self.batch_size, self.z_dim]) 
         result = self.sess.run(
             self.sampler,
             feed_dict={self.z: bz}
@@ -308,7 +304,7 @@ class DCGAN(object):
             print('h3',h3.get_shape())
 
             h4= deconv2d(h3,
-                    [self.batch_size, WAV_WIDTH, WAV_HEIGHT, DIMENSIONS], name='g_h4', with_w=False, no_bias=False)
+                    [self.batch_size, WAV_WIDTH, WAV_HEIGHT, 1], name='g_h4', with_w=False, no_bias=False)
 
             print('h4',h4.get_shape())
             tanh = tf.nn.tanh(h4)
@@ -337,7 +333,7 @@ class DCGAN(object):
             h3 = tf.nn.relu(self.g_bn3(h3, train=False))
             print('h3', h3.get_shape())
 
-            h4 = deconv2d(h3, [self.batch_size, WAV_WIDTH, WAV_HEIGHT, DIMENSIONS], name='g_h4', no_bias=False)
+            h4 = deconv2d(h3, [self.batch_size, WAV_WIDTH, WAV_HEIGHT, 1], name='g_h4', no_bias=False)
             print('h4', h4.get_shape())
 
             #tanh = tf.nn.tanh(h4)
