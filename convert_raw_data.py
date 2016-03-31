@@ -19,7 +19,7 @@ def add_to_training(dir):
         process_file=  "training/processed/"+fname
         silent_file = "training/silence_removed/"+fname
         output_file=  "training/"+fname
-        do("ffmpeg -y -i \""+file+"\" -ar 4096 \""+process_file+"\"")
+        do("ffmpeg -y -i \""+file+"\" -ar 32768 \""+process_file+"\"")
         do("ffmpeg -y -i \""+process_file+"\" -ac 1 \""+silent_file+"\"")
         do("sox \""+silent_file+"\" \""+output_file+"\" silence 1 0.1 0.1% reverse silence 1 0.1 0.1% reverse")
         #remove silence
