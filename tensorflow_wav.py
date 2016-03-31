@@ -168,7 +168,10 @@ def decode(input, bitrate=2048):
     return output
 
 def scale_up(input):
-    real = tf.nn.tanh(input)
-    scale = 1500
-    i_scale = 0
-    return scale*real
+    with tf.variable_scope("scale"):
+
+        real = tf.nn.tanh(input)
+        sign = tf.sign(real)
+
+        #w = tf.get_variable('scale_w', [1], initializer=tf.constant_initializer(10))
+        return tf.exp(tf.abs(11.09*real))*sign

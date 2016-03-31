@@ -219,8 +219,8 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG))
 
-                    SAVE_COUNT=400
-                    SAMPLE_COUNT=50
+                    SAVE_COUNT=50
+                    SAMPLE_COUNT=1e10
                     
                     print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
@@ -250,7 +250,7 @@ class DCGAN(object):
 
     def sample(self, bz=None):
         if(bz == None):
-            bz = np.random.normal(0, 0.5, [self.batch_size, self.z_dim]) 
+            bz = np.random.uniform(-1, 1, [self.batch_size, self.z_dim]) 
         result = self.sess.run(
             self.sampler,
             feed_dict={self.z: bz}
