@@ -69,6 +69,14 @@ def encode(input,bitrate=4096):
     return output
 
 def scale_up(input):
-    output = tf.nn.tanh(input)*(65535)
-    return output
+    with tf.variable_scope('scale'):
+        input = tf.reshape(input, [-1, 4096])
+        w=tf.get_variable('scale_w', [1,1], initializer=tf.constant_initializer(0.01))
+        #bias=tf.get_variable('scale_bias', [input.get_shape()[-1]], initializer=tf.constant_initializer(0))
+        output = tf.nn.tanh(input)
+        #output = tf.pow(input,w)
+        output = input / w
+        #output = tf.nn.bias_add(output, bias)
+        print(output.get_shape())
+        return tf.reshape(output, [-1, 64, 64, 1])
 

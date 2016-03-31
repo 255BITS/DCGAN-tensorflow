@@ -5,7 +5,7 @@ from math import sqrt
 
 def fft(x):
     n = x.shape[0]
-    return scipy.fft(x)*1/sqrt(n)
+    return scipy.fft(x)
 def stft(x, fs, framesz, hop):
     #print("STFT got", x, fs, framesz, hop)
     framesamp = int(framesz*fs)
@@ -21,7 +21,7 @@ def stft(x, fs, framesz, hop):
 
 def ifft(x):
     n = x.shape[0]
-    return scipy.ifft(x)*1/sqrt(n)
+    return scipy.ifft(x)
 def istft(X, fs, T, hop):
     x = scipy.zeros(T*fs)
     framesamp = X.shape[1]
