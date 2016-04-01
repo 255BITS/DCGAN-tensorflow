@@ -66,19 +66,18 @@ def encode(input,bitrate=4096):
     return output
 
 def scale_up(input):
-    raw_output, fft_real_output, fft_imag_output = tf.split(3, 3, input)
+    output = tf.nn.tanh(input)
+    raw_output, fft_real_output, fft_imag_output = tf.split(3, 3, output)
     with tf.variable_scope("scale"):
 
-
-        rawtanh = tf.nn.tanh(raw_output)
-
-        #sign = tf.sign(raw_output)
+        sign = tf.sign(raw_output)
 
         raw_w = tf.get_variable('raw_scale_w', [1], initializer=tf.constant_initializer(0.03))
         raw =  tf.exp(tf.abs(10.5*raw_output))*sign
         #raw = raw_output / raw_w
-        #raw =  tf.exp(tf.abs(11.09*raw_output))*sign
-        raw = rawtanh / raw_w
 
+        w = tf.get_variable('scale_w', [1], dtype=tf.complex64, initializer=tf.constant_initializer(0.03+0.03j))
+        complex = tf.complex(fft_real_output, fft_imag_output)
+        fft = complex / w
 
-        return tf.concat(3, [raw, ])
+        return tf.concat(3, [raw, tf.real(fft), tf.imag(fft)])
