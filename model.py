@@ -6,6 +6,7 @@ import tensorflow as tf
 from ops import *
 from utils import *
 import tensorflow_wav
+import lstm
 
 WAV_SIZE=64
 WAV_HEIGHT=64
@@ -274,8 +275,11 @@ class DCGAN(object):
             h4 = linear(tf.reshape(h3, [self.batch_size, -1]), 1, 'd_h3_lin')
             print('h4', h4.get_shape())
             print("End discriminator creation")
+            #sig = tf.nn.sigmoid(h4)
+            lstm_layer = lstm.discriminator(h4)
+            #lin = linear(lstm_layer, 1, 'lstm_linear')
 
-            return tf.nn.sigmoid(h4)
+            return lstm_layer#tf.nn.sigmoid(lin)
 
     def generator(self, z, y=None):
         if not self.y_dim:
