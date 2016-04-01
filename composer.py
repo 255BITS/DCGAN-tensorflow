@@ -8,15 +8,17 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="drums3"
+dataset="drums-dct"
 wav_size=64
 is_crop=False
-batch_size=8
+batch_size=10
 checkpoint_dir="checkpoint"
 bitrate=4096
 song_seconds=10
 song_step=1.0
 z_dim=64
+
+DIMENSIONS=1
 
 
 with tf.Session() as sess:
@@ -39,7 +41,7 @@ with tf.Session() as sess:
         audio = dcgan.sample()
         print("Audio shape", np.shape(audio))
 
-        audio = np.reshape(audio,[-1, 2])
+        audio = np.reshape(audio,[-1, DIMENSIONS])
         print("WAV shape", np.shape(audio[:,0]))
         full_audio += audio[:,0].tolist()
         print("Full audio shape", np.shape(full_audio))

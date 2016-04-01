@@ -12,7 +12,7 @@ WAV_HEIGHT=64
 WAV_LENGTH=1
 BITRATE=4096
 WAV_WIDTH=int(BITRATE*WAV_LENGTH/WAV_HEIGHT)
-DIMENSIONS=2
+DIMENSIONS=1
 
 class DCGAN(object):
     def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
@@ -201,7 +201,7 @@ class DCGAN(object):
                     #if(errG > 10):
                     #    errg_range = 2
                     #else:
-                    errg_range=1
+                    errg_range=2
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network
