@@ -219,7 +219,7 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG))
 
-                    SAVE_COUNT=200
+                    SAVE_COUNT=50
                     SAMPLE_COUNT=1e10
                     
                     print("Batch ", counter)

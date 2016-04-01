@@ -50,7 +50,7 @@ def preprocess(output_file):
 
 
 def add_to_training(dir):
-    files = glob.glob(dir+"/*.mp3")
+    files = glob.glob(dir+"/*.wav")
     print(dir+'/wav')
     #files = files[:1]
     for file in files:
@@ -73,25 +73,12 @@ def add_to_training(dir):
         #do("rm \""+file+"-4k-1-chan.wav\"")
 
 
-def do_imdct(row):
-    return mdct.imdct(row, len(row))
-
-# This is only used by the sanity test, to make sure our 0 layer is correct
-def convert_back_to_wav(filename, outfile):
-    mlaudio = tensorflow_wav.get_pre(filename)
-    audio = np.array(mlaudio['data'])
-    audio = np.reshape(audio,[-1, DIMENSIONS])
-    audio = audio[:,0].tolist()
-    imdct_data = np.array(audio).reshape([-1, WAV_X])
-    imdct_data = [do_imdct(row) for row in imdct_data]
-
-    print("NEW SHAPE", np.shape(imdct_data))
-    mlaudio['data'] = np.array(imdct_data)
-    tensorflow_wav.save_wav(mlaudio, outfile)
-
 def sanity_test(input_wav):
     processed = preprocess(input_wav)
-    convert_back_to_wav(input_wav+".mlaudio", input_wav+".sanity.wav")
+    mlaudio = tensorflow_wav.get_pre(input_wav+".mlaudio")
+    out = tensorflow_wav.convert_mlaudio_to_wav(mlaudio, DIMENSIONS, WAV_X)
+    outfile = input_wav+".sanity.wav"
+    tensorflow_wav.save_wav(out, outfile)
 
 if(args.sanity):
     sanity_test("input.wav")
@@ -101,8 +88,8 @@ else:
     #add_to_training("datasets/one-large")
     #add_to_training("datasets/youtube-drums-2)
     #add_to_training("datasets/youtube-drums-3")
-    #add_to_training('datasets/videogame')
-    add_to_training('datasets/drums2')
+    add_to_training('datasets/videogame')
+    #add_to_training('datasets/drums2')
 
     #add_to_training("datasets/youtube-drums-120bpm-1")
     #add_to_training("youtube/5")

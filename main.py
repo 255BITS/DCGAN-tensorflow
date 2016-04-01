@@ -29,29 +29,28 @@ def main(_):
 
     with tf.Session() as sess:
 
-        with tf.device('/cpu:0'):
-            if FLAGS.dataset == 'mnist':
-                dcgan = DCGAN(sess, wav_size=FLAGS.wav_size, batch_size=FLAGS.batch_size, y_dim=10,
-                        dataset_name=FLAGS.dataset, is_crop=FLAGS.is_crop, checkpoint_dir=FLAGS.checkpoint_dir)
-            else:
-                dcgan = DCGAN(sess, wav_size=FLAGS.wav_size, batch_size=FLAGS.batch_size,
-                        dataset_name=FLAGS.dataset, is_crop=FLAGS.is_crop, checkpoint_dir=FLAGS.checkpoint_dir)
+        if FLAGS.dataset == 'mnist':
+            dcgan = DCGAN(sess, wav_size=FLAGS.wav_size, batch_size=FLAGS.batch_size, y_dim=10,
+                    dataset_name=FLAGS.dataset, is_crop=FLAGS.is_crop, checkpoint_dir=FLAGS.checkpoint_dir)
+        else:
+            dcgan = DCGAN(sess, wav_size=FLAGS.wav_size, batch_size=FLAGS.batch_size,
+                    dataset_name=FLAGS.dataset, is_crop=FLAGS.is_crop, checkpoint_dir=FLAGS.checkpoint_dir)
 
-            if FLAGS.is_train:
-                print("TRAIN TIME")
-                dcgan.train(FLAGS)
-            else:
-                dcgan.load(FLAGS.checkpoint_dir)
+        if FLAGS.is_train:
+            print("TRAIN TIME")
+            dcgan.train(FLAGS)
+        else:
+            dcgan.load(FLAGS.checkpoint_dir)
 
-            to_json("./web/js/layers.js", [dcgan.h0_w, dcgan.h0_b, dcgan.g_bn0],
-                                          [dcgan.h1_w, dcgan.h1_b, dcgan.g_bn1],
-                                          [dcgan.h2_w, dcgan.h2_b, dcgan.g_bn2],
-                                          [dcgan.h3_w, dcgan.h3_b, dcgan.g_bn3],
-                                          [dcgan.h4_w, dcgan.h4_b, None])
+        to_json("./web/js/layers.js", [dcgan.h0_w, dcgan.h0_b, dcgan.g_bn0],
+                                      [dcgan.h1_w, dcgan.h1_b, dcgan.g_bn1],
+                                      [dcgan.h2_w, dcgan.h2_b, dcgan.g_bn2],
+                                      [dcgan.h3_w, dcgan.h3_b, dcgan.g_bn3],
+                                      [dcgan.h4_w, dcgan.h4_b, None])
 
-            # Below is codes for visualization
-            OPTION = 1
-            visualize(sess, dcgan, FLAGS, OPTION)
+        # Below is codes for visualization
+        OPTION = 1
+        visualize(sess, dcgan, FLAGS, OPTION)
 
 if __name__ == '__main__':
     tf.app.run()

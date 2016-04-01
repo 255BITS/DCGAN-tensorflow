@@ -8,10 +8,10 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="drums-dct"
+dataset="video-game-lstm"
 wav_size=64
 is_crop=False
-batch_size=10
+batch_size=120
 checkpoint_dir="checkpoint"
 bitrate=4096
 song_seconds=10
@@ -42,17 +42,17 @@ with tf.Session() as sess:
         print("Audio shape", np.shape(audio))
 
         audio = np.reshape(audio,[-1, DIMENSIONS])
-        print("WAV shape", np.shape(audio[:,0]))
-        full_audio += audio[:,0].tolist()
+        print("WAV shape", np.shape(audio))
+        full_audio += audio.tolist()
         print("Full audio shape", np.shape(full_audio))
+        break
 
       samplewav = sample.copy()
-      samplewav
       samplewav['data']=full_audio
-      print("samplewav shape", np.shape(samplewav['data']))
+      wav = tensorflow_wav.convert_mlaudio_to_wav(samplewav, DIMENSIONS, wav_size)
 
       filename = "./compositions/song.wav"
-      tensorflow_wav.save_wav(samplewav, filename )
+      tensorflow_wav.save_wav(wav, filename )
 
 
 

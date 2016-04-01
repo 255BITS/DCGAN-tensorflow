@@ -6,9 +6,26 @@ import scipy
 import ops
 import math
 import pickle
+import mdct
 
 FRAME_SIZE=(64/2048)
 HOP=(2048-64)/(2048*64)
+
+def do_imdct(row):
+    return mdct.imdct(row, len(row))
+
+
+def convert_mlaudio_to_wav(mlaudio, dimensions, wav_x):
+    audio = np.array(mlaudio['data'])
+    audio = np.reshape(audio,[-1, dimensions])
+    audio = audio[:,0].tolist()
+    imdct_data = np.array(audio).reshape([-1, wav_x])
+    imdct_data = [do_imdct(row) for row in imdct_data]
+
+    print("NEW SHAPE", np.shape(imdct_data))
+    mlaudio['data'] = np.array(imdct_data)
+    return mlaudio
+
 
 # Returns the file object in complex64
 def get_wav(path):
@@ -28,6 +45,7 @@ def get_wav(path):
 
 def save_wav(in_wav, path):
 
+    print("Saving to ", path)
     wav = wave.open(path, 'wb')
     wav.setnchannels(in_wav['channels'])
     wav.setsampwidth(in_wav['sampwidth'])
