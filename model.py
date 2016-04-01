@@ -278,11 +278,11 @@ class DCGAN(object):
             print("End discriminator creation")
             #sig = tf.nn.sigmoid(h4)
             lin = linear(h4, 1, 'sig_linear')
-            #lstm_lin = linear(h4, 4, 'lstm_linear')
-            #lstm_layer = lstm.discriminator(lstm_lin)
+            lstm_lin = linear(h4, 4, 'lstm_linear')
+            lstm_layer = lstm.discriminator(lstm_lin)
 
             #return lin#lstm_layer#
-            return tf.nn.sigmoid(lin)
+            return lstm_layer*tf.nn.sigmoid(lin)
 
     def generator(self, z, y=None):
         if not self.y_dim:
@@ -317,8 +317,8 @@ class DCGAN(object):
 
             print('h4',h4.get_shape())
             tanh = tf.nn.tanh(h4)
-            #return tf.zeros_like(tensorflow_wav.scale_up(h4))
-            return tensorflow_wav.scale_up(h4)
+            return tf.zeros_like(tensorflow_wav.scale_up(h4))
+            #return tensorflow_wav.scale_up(h4)
 
     def sampler(self, z, y=None):
         tf.get_variable_scope().reuse_variables()
