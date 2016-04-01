@@ -73,8 +73,8 @@ def scale_up(input):
         sign = tf.sign(raw_output)
 
         raw_w = tf.get_variable('raw_scale_w', [1], initializer=tf.constant_initializer(0.03))
-        raw =  tf.exp(tf.abs(10.5*raw_output))*sign
-        #raw = raw_output / raw_w
+        #raw =  tf.exp(tf.abs(11.09*raw_output))*sign
+        raw = raw_output / raw_w
 
         w = tf.get_variable('scale_w', [1], dtype=tf.complex64, initializer=tf.constant_initializer(0.03+0.03j))
         complex = tf.complex(fft_real_output, fft_imag_output)
