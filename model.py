@@ -12,12 +12,12 @@ WAV_HEIGHT=64
 WAV_LENGTH=1
 BITRATE=4096
 WAV_WIDTH=int(BITRATE*WAV_LENGTH/WAV_HEIGHT)
-DIMENSIONS=3
+DIMENSIONS=2
 
 class DCGAN(object):
     def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
                  batch_size=64, sample_size = 2, wav_shape=[WAV_WIDTH, WAV_HEIGHT, DIMENSIONS],
-                 y_dim=None, z_dim=64, gf_dim=32, df_dim=32,
+                 y_dim=None, z_dim=64, gf_dim=64, df_dim=64,
                  gfc_dim=1024, dfc_dim=1024, c_dim=1, dataset_name='default',
                  checkpoint_dir='checkpoint'):
         """
@@ -201,7 +201,7 @@ class DCGAN(object):
                     #if(errG > 10):
                     #    errg_range = 2
                     #else:
-                    errg_range=3
+                    errg_range=1
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network
@@ -218,7 +218,7 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG))
 
-                    SAVE_COUNT=50
+                    SAVE_COUNT=200
                     SAMPLE_COUNT=1e10
                     
                     print("Batch ", counter)

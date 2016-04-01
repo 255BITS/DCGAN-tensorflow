@@ -1,0 +1,2 @@
+class LSTM():
+    def build

@@ -8,14 +8,15 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="video-game2"
+dataset="drums3"
 wav_size=64
 is_crop=False
-batch_size=150
+batch_size=8
 checkpoint_dir="checkpoint"
 bitrate=4096
 song_seconds=10
 song_step=1.0
+z_dim=64
 
 
 with tf.Session() as sess:

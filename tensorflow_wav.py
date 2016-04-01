@@ -65,17 +65,36 @@ def encode(input,bitrate=4096):
     output = compose(output)
     return output
 
+def ff_nn(input, name):
+    with tf.variable_scope("ff_nn"):
+        input_shape = input.get_shape() 
+        input_dim = int(input.get_shape()[1])
+        W = tf.get_variable(name+'w',[input_dim, input_dim], initializer=tf.random_normal_initializer(0, 0.02))
+
+        # Initialize b to zero
+        b = tf.get_variable(name+'b', [input_dim], initializer=tf.constant_initializer(0))
+
+        output = tf.nn.tanh(tf.matmul(tf.reshape(input, [-1,input_dim]),W) + b)
+        output = tf.reshape(output, input_shape)
+        return output
+
+
+
 def scale_up(input):
-    output = tf.nn.tanh(input)
-    raw_output, fft_real_output, fft_imag_output = tf.split(3, 3, output)
     with tf.variable_scope("scale"):
 
+        output = tf.nn.tanh(input)
+        w = tf.get_variable('scale_w', [1], dtype=tf.float32, initializer=tf.constant_initializer(0.03))
+
+        raw_output, fft_real_output= tf.split(3, 2, output)
         sign = tf.sign(raw_output)
 
-        raw =  tf.exp(tf.abs(11.09*raw_output))*sign
+        #raw = tf.exp(tf.abs(10.8*raw_output))*sign
+        raw = raw_output * 32768
 
-        w = tf.get_variable('scale_w', [1], dtype=tf.complex64, initializer=tf.constant_initializer(0.03+0.03j))
-        complex = tf.complex(fft_real_output, fft_imag_output)
-        fft = complex / w
+        #new_fft = ff_nn(fft_output, 'fft')
+        #complex = tf.complex(fft_real_output, fft_imag_output)
+        #fft = complex / w
+        fft = fft_real_output / w
 
-        return tf.concat(3, [raw, tf.real(fft), tf.imag(fft)])
+        return tf.concat(3, [raw, fft])
