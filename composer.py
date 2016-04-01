@@ -45,7 +45,6 @@ with tf.Session() as sess:
         print("WAV shape", np.shape(audio))
         full_audio += audio.tolist()
         print("Full audio shape", np.shape(full_audio))
-        break
 
       samplewav = sample.copy()
       samplewav['data']=full_audio

@@ -51,6 +51,7 @@ def preprocess(output_file):
 
 def add_to_training(dir):
     files = glob.glob(dir+"/*.wav")
+    files += glob.glob(dir+"/*.mp3")
     print(dir+'/wav')
     #files = files[:1]
     for file in files:
