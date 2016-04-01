@@ -119,7 +119,6 @@ class DCGAN(object):
         """Train DCGAN"""
         data = glob(os.path.join("./training", "*.mlaudio"))
         print(data)
-        #np.random.shuffle(data)
 
         #print('g_vars', [shape.get_shape() for shape in self.g_vars])
         #print('d_vars', [shape.get_shape() for shape in self.d_vars])
@@ -135,9 +134,6 @@ class DCGAN(object):
         #self.d_sum = tf.merge_summary([self.z_sum, self.d_sum, self.d_loss_real_sum, self.d_loss_sum])
         #self.writer = tf.train.SummaryWriter("./logs", self.sess.graph_def)
 
-        sample_file = data[0]
-        sample =tensorflow_wav.get_pre(sample_file)#get_wav(sample_file, self.wav_size, is_crop=self.is_crop) #[get_wav(sample_file, self.wav_size, is_crop=self.is_crop) for sample_file in sample_files]
-        sample_wavs = np.array(sample['data'])
 
         counter = 1
         start_time = time.time()
@@ -151,6 +147,7 @@ class DCGAN(object):
 
         for epoch in range(config.epoch):
             batch_files = glob(os.path.join("./training", "*.mlaudio"))
+            np.random.shuffle(batch_files)
 
             def get_wav_content(files):
                 for filee in files:
@@ -161,21 +158,17 @@ class DCGAN(object):
             idx=0
             batch_idxs=0
             for wavobj in get_wav_content(batch_files):
-                batch_item = wavobj['data']
-                print(batch_item, len(batch_item))
+                print('shape is', wavobj['data'].shape)
+                wavdata = wavobj['data']
 
-                max_items = int(len(batch_item)/(BITRATE*WAV_LENGTH)/config.batch_size)*(WAV_LENGTH*BITRATE) * config.batch_size
-                batch_item = batch_item[:max_items]
-                #print(max_items)
-                #print(len(batch_item))
+                dims_map = config.batch_size * WAV_HEIGHT*WAV_WIDTH * DIMENSIONS
+                print("DIM map is", dims_map)
+                flattened = np.reshape(wavdata, [-1])
+                max_items = int(flattened.shape[0]/dims_map)*dims_map
+                print("MAX items ", max_items)
 
-                #TODO: review this code to make sure nothing is being deformed
-                # Are we properly getting the values?  We can output to a file to be sure 'sanity.wav'
-
-                print(max_items)
-                print("batch shape", WAV_WIDTH*WAV_HEIGHT, np.shape(batch_item))
+                batch_item = flattened[:max_items]
                 batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, WAV_HEIGHT*WAV_WIDTH, DIMENSIONS])
-                sample_wavs = sample_wavs[:max_items].reshape([-1, config.batch_size, WAV_HEIGHT*WAV_WIDTH, DIMENSIONS])
                 batch_idxs+=1
                 errD_fake = 0
                 errD_real = 0
@@ -203,7 +196,7 @@ class DCGAN(object):
                     #if(errG > 10):
                     #    errg_range = 2
                     #else:
-                    errg_range=1
+                    errg_range=2
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network

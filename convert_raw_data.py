@@ -35,6 +35,7 @@ def preprocess(output_file):
 
 def add_to_training(dir):
     files = glob.glob(dir+"/*.wav")
+    #files = files[:1]
     for file in files:
         print("converting " +file)
         #-bufsize 4096 -b:v 4096
@@ -43,17 +44,22 @@ def add_to_training(dir):
         process_file=  "training/processed/"+fname
         silent_file = "training/silence_removed/"+fname
         output_file=  "training/"+fname
-        do("ffmpeg -y -i \""+file+"\" -ar 32768 \""+process_file+"\"")
+        do("ffmpeg -y -i \""+file+"\" -ar 4096 \""+process_file+"\"")
         do("ffmpeg -y -i \""+process_file+"\" -ac 1 \""+silent_file+"\"")
         do("sox \""+silent_file+"\" \""+output_file+"\" silence 1 0.1 0.1% reverse silence 1 0.1 0.1% reverse")
-        preprocess(output_file)
+        try:
+            preprocess(output_file)
+        except:
+            print("Error preprocessing", output_file)
         #remove silence
         #do("ffmpeg -i \""+file+"-4k-1-chan.wav\" -af silenceremove=1:0:-30dB:-1:0:0 \""+file+"-4k-mono-silent.wav\"")
         #do("rm \""+file+"-4k-1-chan.wav\"")
 
-add_to_training("datasets/one-large")
+do("rm training/*.wav")
+#do("rm training/*.mlaudio")
+#add_to_training("datasets/one-large")
 #add_to_training("datasets/youtube-drums-2)
 #add_to_training("datasets/youtube-drums-3")
-#add_to_training("datasets/youtube-drums-120bpm-1")
+add_to_training("datasets/youtube-drums-120bpm-1")
 #add_to_training("youtube/5")
 #add_to_training("youtube/1")
