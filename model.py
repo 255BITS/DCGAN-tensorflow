@@ -272,14 +272,16 @@ class DCGAN(object):
             print('h2', h2.get_shape())
             h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
             print('h3', h3.get_shape())
-            h4 = linear(tf.reshape(h3, [self.batch_size, -1]), 1, 'd_h3_lin')
+            h4_reshape = tf.reshape(h3, [self.batch_size, -1])
+            h4 = linear(h4_reshape, 10, 'd_h3_lin')
             print('h4', h4.get_shape())
             print("End discriminator creation")
             #sig = tf.nn.sigmoid(h4)
-            lstm_layer = lstm.discriminator(h4)
-            #lin = linear(lstm_layer, 1, 'lstm_linear')
+            lin = linear(h4, 1, 'lstm_linear')
+            lstm_layer = lstm.discriminator(lin)
 
-            return lstm_layer#tf.nn.sigmoid(lin)
+            #return lin#lstm_layer#
+            return lstm_layer*tf.nn.sigmoid(lin)
 
     def generator(self, z, y=None):
         if not self.y_dim:

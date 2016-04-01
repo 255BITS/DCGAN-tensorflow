@@ -13,9 +13,9 @@ def discriminator(input):
         memory = 16
         cell = rnn_cell.BasicLSTMCell(memory)
         output, state = seq2seq.basic_rnn_seq2seq(cell_input, zeros, cell)
-        softmax_w = tf.get_variable("softmax_w", [memory*vocab_size, vocab_size])
-        softmax_b = tf.get_variable("softmax_b", [vocab_size])
+        softmax_w = tf.get_variable("softmax_w", [memory*vocab_size, vocab_size], initializer=tf.truncated_normal_initializer(stddev=0.02))
+        softmax_b = tf.get_variable("softmax_b", [vocab_size], initializer=tf.constant_initializer(0))
         outputs = tf.concat(1, output)
         logits = tf.nn.xw_plus_b(outputs, softmax_w, softmax_b)
         print("Output shape is", output, state)
-        return tf.nn.sigmoid(logits)#tf.nn.softmax(logits)
+        return tf.nn.softmax(logits)#tf.nn.softmax(logits)
