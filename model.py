@@ -152,7 +152,10 @@ class DCGAN(object):
             def get_wav_content(files):
                 for filee in files:
                     print("Yielding ", filee)
-                    yield tensorflow_wav.get_pre(filee)
+                    try:
+                        yield tensorflow_wav.get_pre(filee)
+                    except Exception as e:
+                        print("Could not load ", filee, e)
 
             #print(batch)
             idx=0
@@ -198,7 +201,7 @@ class DCGAN(object):
                     #if(errG > 10):
                     #    errg_range = 2
                     #else:
-                    errg_range=2
+                    errg_range=3
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network

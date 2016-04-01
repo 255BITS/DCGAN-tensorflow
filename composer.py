@@ -8,11 +8,10 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="audiohd"
+dataset="video-game2"
 wav_size=64
 is_crop=False
-batch_size=16
-z_dim=64
+batch_size=150
 checkpoint_dir="checkpoint"
 bitrate=4096
 song_seconds=10
