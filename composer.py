@@ -38,7 +38,7 @@ with tf.Session() as sess:
                     .astype(np.float32)
         second += song_step
         batch_z[0]=float(second)/song_seconds
-        audio = dcgan.sample()
+        audio = dcgan.sample(batch_z)
         print("Audio shape", np.shape(audio))
 
         audio = np.reshape(audio,[-1, DIMENSIONS])
