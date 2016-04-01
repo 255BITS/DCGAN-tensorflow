@@ -38,7 +38,7 @@ with tf.Session() as sess:
         audio = dcgan.sample()
         print("Audio shape", np.shape(audio))
 
-        audio = np.reshape(audio,[-1, 2])
+        audio = np.reshape(audio,[-1, 3])
         print("WAV shape", np.shape(audio[:,0]))
         full_audio += audio[:,0].tolist()
         print("Full audio shape", np.shape(full_audio))
