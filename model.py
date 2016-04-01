@@ -177,6 +177,8 @@ class DCGAN(object):
                     idx+=1
                     batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
                                 .astype(np.float32)
+                    batch_z[0]=float(i)/np.shape(batch_wavs_multiple)[0]
+                    print("batch z 0 = ", batch_z[0][0], np.shape(batch_wavs_multiple))
 
                     #if(errD_fake > 10):
                     #    errd_range = 3

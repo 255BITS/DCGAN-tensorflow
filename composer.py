@@ -8,12 +8,16 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="fftraw"
+dataset="audiohd"
 wav_size=64
 is_crop=False
-batch_size=128
+batch_size=16
+z_dim=64
 checkpoint_dir="checkpoint"
 bitrate=4096
+song_seconds=10
+song_step=1.0
+
 
 with tf.Session() as sess:
     with tf.device('/cpu:0'):
@@ -26,7 +30,12 @@ with tf.Session() as sess:
       sample =tensorflow_wav.get_wav(sample_file)
 
       full_audio = []
-      for i in range(4):
+      second = 0.0
+      while(second < song_seconds):
+        batch_z = np.random.uniform(-1, 1, [batch_size, z_dim]) \
+                    .astype(np.float32)
+        second += song_step
+        batch_z[0]=float(second)/song_seconds
         audio = dcgan.sample()
         print("Audio shape", np.shape(audio))
 
