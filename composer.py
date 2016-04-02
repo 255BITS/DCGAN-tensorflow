@@ -8,13 +8,13 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="video-game-lstm"
+dataset="dcttime"
 wav_size=64
 is_crop=False
-batch_size=120
+batch_size=128
 checkpoint_dir="checkpoint"
 bitrate=4096
-song_seconds=10
+song_seconds=20
 song_step=1.0
 z_dim=64
 
@@ -30,6 +30,7 @@ with tf.Session() as sess:
       data = glob(os.path.join("./training", "*.wav"))
       sample_file = data[0]
       sample =tensorflow_wav.get_wav(sample_file)
+      samplewav = sample.copy()
 
       full_audio = []
       second = 0.0
@@ -43,18 +44,19 @@ with tf.Session() as sess:
 
         audio = np.reshape(audio,[-1, DIMENSIONS])
         print("WAV shape", np.shape(audio))
-        audio = audio.tolist()[:bitrate*2]
+        audio = audio.tolist()[:bitrate]
+        samplewav['data']=audio
+        converted = tensorflow_wav.convert_mlaudio_to_wav(samplewav, DIMENSIONS, wav_size)
+        converted['data'] = np.reshape(converted['data'], [-1])
         full_audio += audio
         print("Full audio shape", np.shape(full_audio))
-        print(len(audio) / bitrate)
 
-      samplewav = sample.copy()
       samplewav['data']=full_audio
-      print( samplewav['rate'], bitrate, len(full_audio))
-      wav = tensorflow_wav.convert_mlaudio_to_wav(samplewav, DIMENSIONS, wav_size)
+      print(samplewav['rate'], bitrate, len(full_audio))
+      samplewav['data'] = np.reshape(samplewav['data'], [-1])
 
       filename = "./compositions/song.wav"
-      tensorflow_wav.save_wav(wav, filename )
+      tensorflow_wav.save_wav(samplewav, filename )
 
 
 

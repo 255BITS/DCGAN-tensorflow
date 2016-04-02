@@ -42,7 +42,7 @@ def preprocess(output_file):
     dct = np.zeros_like(mdct)
     #dct = [do_dct(row) for row in raw]
     #fft = np.swapaxes(fft, 0, 1)
-    
+
     data = np.concatenate([[mdct]])#, [dct]])
     #carefully change the format to [-1, WAV_X, 3] data = np.reshape(data, [2, -1, WAV_X]) data = np.swapaxes(np.swapaxes(data, 0, 1), 1, DIMENSIONS)
     wav['data']=data

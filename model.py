@@ -87,7 +87,7 @@ class DCGAN(object):
         print("shapes d_wav", self.wav_shape, self.wavs.get_shape())
         d_wav = tf.reshape(self.wavs, [self.batch_size] + self.wav_shape)
         self.G = self.generator(self.z)
-        print("G is", self.G.get_shape(), d_wav.get_shape())
+        print("G is", self.G.get_shape())
         self.D = self.discriminator(d_wav, reuse=None)
 
         self.sampler = self.sampler(self.z)
@@ -255,6 +255,8 @@ class DCGAN(object):
             self.sampler,
             feed_dict={self.z: bz}
         )
+        print("len z", np.shape(bz))
+        print("len res", np.shape(result))
         return result
 
     def discriminator(self, wav, reuse=False, y=None):
