@@ -276,7 +276,7 @@ class DCGAN(object):
             #h4 = linear(h4_reshape, 10, 'd_h3_lin')
             print("End discriminator creation")
             lin = linear(h4_reshape, 1, 'sig_linear')
-            lstm_lin = linear(h4_reshape, 4, 'lstm_linear')
+            lstm_lin = linear(h4_reshape, 128, 'lstm_linear')
             print(lstm_lin)
             lstm_layer = lstm.discriminator(lstm_lin)
 
