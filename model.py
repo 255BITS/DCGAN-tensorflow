@@ -189,7 +189,14 @@ class DCGAN(object):
                     #elif(errD_fake > 8):
                     #    errd_range = 2
                     #else:
-                    errd_range=1
+                    if(errD_fake > 1.3):
+                        errd_range=5
+                    elif(errD_fake > 1.2):
+                        errd_range=4
+                    elif(errD_fake > 1.1):
+                        errd_range=3
+                    else:
+                        errd_range=2
                     #print('min', 'max', 'mean', 'stddev', batch_wavs.min(), batch_wavs.max(), np.mean(batch_wavs), np.std(batch_wavs))
                     for repeat in range(errd_range):
                         #print("discrim ", errd_range)
@@ -199,10 +206,10 @@ class DCGAN(object):
                         #self.writer.add_summary(summary_str, counter)
 
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                    #if(errG > 10):
-                    #    errg_range = 2
-                    #else:
-                    errg_range=1
+                    if(errG > 1):
+                        errg_range = 2
+                    else:
+                        errg_range=1
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network
@@ -270,15 +277,13 @@ class DCGAN(object):
             print('h1', h1.get_shape())
             h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
             print('h2', h2.get_shape())
-            #h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+            h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
             #print('h3', h3.get_shape())
-            h4_reshape = tf.reshape(h2, [self.batch_size, -1])
-            #h4 = linear(h4_reshape, 10, 'd_h3_lin')
+            h3_reshape = tf.reshape(h3, [self.batch_size, -1])
+            h2_reshape = tf.reshape(h2, [self.batch_size, -1])
             print("End discriminator creation")
-            lin = linear(h4_reshape, 1, 'sig_linear')
-            lstm_lin = linear(h4_reshape, 128, 'lstm_linear')
-            print(lstm_lin)
-            lstm_layer = lstm.discriminator(lstm_lin)
+            lin = linear(h3_reshape, 1, 'sig_linear')
+            lstm_layer = lstm.discriminator(h2_reshape)
 
             return tf.nn.sigmoid(lstm_layer*lin)
 
