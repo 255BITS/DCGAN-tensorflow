@@ -33,9 +33,9 @@ with tf.Session() as sess:
 
       full_audio = []
       second = 0.0
+      batch_z = np.random.uniform(-1, 1, [batch_size, z_dim]) \
+                .astype(np.float32)
       while(second < song_seconds):
-        batch_z = np.random.uniform(-1, 1, [batch_size, z_dim]) \
-                    .astype(np.float32)
         second += song_step
         batch_z[0]=float(second)/song_seconds
         audio = dcgan.sample(batch_z)
@@ -43,11 +43,14 @@ with tf.Session() as sess:
 
         audio = np.reshape(audio,[-1, DIMENSIONS])
         print("WAV shape", np.shape(audio))
-        full_audio += audio.tolist()
+        audio = audio.tolist()[:bitrate*2]
+        full_audio += audio
         print("Full audio shape", np.shape(full_audio))
+        print(len(audio) / bitrate)
 
       samplewav = sample.copy()
       samplewav['data']=full_audio
+      print( samplewav['rate'], bitrate, len(full_audio))
       wav = tensorflow_wav.convert_mlaudio_to_wav(samplewav, DIMENSIONS, wav_size)
 
       filename = "./compositions/song.wav"
