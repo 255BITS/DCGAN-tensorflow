@@ -202,7 +202,7 @@ class DCGAN(object):
                     #if(errG > 10):
                     #    errg_range = 2
                     #else:
-                    errg_range=2
+                    errg_range=1
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network
@@ -219,7 +219,7 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG))
 
-                    SAVE_COUNT=50
+                    SAVE_COUNT=5000
                     SAMPLE_COUNT=1e10
                     
                     print("Batch ", counter)
@@ -270,19 +270,17 @@ class DCGAN(object):
             print('h1', h1.get_shape())
             h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
             print('h2', h2.get_shape())
-            h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
-            print('h3', h3.get_shape())
-            h4_reshape = tf.reshape(h3, [self.batch_size, -1])
-            h4 = linear(h4_reshape, 10, 'd_h3_lin')
-            print('h4', h4.get_shape())
+            #h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+            #print('h3', h3.get_shape())
+            h4_reshape = tf.reshape(h2, [self.batch_size, -1])
+            #h4 = linear(h4_reshape, 10, 'd_h3_lin')
             print("End discriminator creation")
-            #sig = tf.nn.sigmoid(h4)
-            lin = linear(h4, 1, 'sig_linear')
-            lstm_lin = linear(h4, 4, 'lstm_linear')
+            lin = linear(h4_reshape, 1, 'sig_linear')
+            lstm_lin = linear(h4_reshape, 4, 'lstm_linear')
+            print(lstm_lin)
             lstm_layer = lstm.discriminator(lstm_lin)
 
-            #return lin#lstm_layer#
-            return lstm_layer*tf.nn.sigmoid(lin)
+            return tf.nn.sigmoid(lstm_layer*lin)
 
     def generator(self, z, y=None):
         if not self.y_dim:
@@ -317,8 +315,8 @@ class DCGAN(object):
 
             print('h4',h4.get_shape())
             tanh = tf.nn.tanh(h4)
-            return tf.zeros_like(tensorflow_wav.scale_up(h4))
-            #return tensorflow_wav.scale_up(h4)
+            #return tf.zeros_like(tensorflow_wav.scale_up(h4))
+            return tensorflow_wav.scale_up(h4)
 
     def sampler(self, z, y=None):
         tf.get_variable_scope().reuse_variables()
