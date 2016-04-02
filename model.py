@@ -206,6 +206,8 @@ class DCGAN(object):
                         #self.writer.add_summary(summary_str, counter)
 
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
+                    if(errG > 5):
+                        errg_range = 3
                     if(errG > 1):
                         errg_range = 2
                     else:
@@ -226,7 +228,7 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG))
 
-                    SAVE_COUNT=5000
+                    SAVE_COUNT=100
                     SAMPLE_COUNT=1e10
                     
                     print("Batch ", counter)
@@ -280,7 +282,7 @@ class DCGAN(object):
             h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
             #print('h3', h3.get_shape())
             h3_reshape = tf.reshape(h3, [self.batch_size, -1])
-            h2_reshape = tf.reshape(h2, [self.batch_size, -1])
+            h2_reshape = tf.reshape(wav, [self.batch_size, -1])
             print("End discriminator creation")
             lin = linear(h3_reshape, 1, 'sig_linear')
             lstm_layer = lstm.discriminator(h2_reshape)

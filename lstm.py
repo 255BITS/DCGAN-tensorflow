@@ -6,7 +6,7 @@ def discriminator(input):
         cell_input = [input]
         zeros = [tf.zeros_like(input)]
         vocab_size = int(input.get_shape()[1])
-        memory = 256
+        memory = 512
         cell = rnn_cell.BasicLSTMCell(memory)
         stacked_cell = rnn_cell.MultiRNNCell([cell]*2)
         logits, state = seq2seq.basic_rnn_seq2seq(cell_input, zeros, stacked_cell)
@@ -19,7 +19,10 @@ def discriminator(input):
         #loss = seq2seq.sequence_loss(logits, labels, weights)
         logits_ = tf.concat(1, logits)
         # if it's a repeat, one of the memory cells should fire harsh
-        is_repeat = tf.reduce_max(tf.square(tf.nn.softmax(logits_)))
+        w = tf.get_variable('d_softmax_w', [memory, vocab_size], dtype=tf.float32, initializer=tf.truncated_normal_initializer(0, 0.1))
+        b = tf.get_variable('d_softmax_b', [vocab_size], dtype=tf.float32, initializer=tf.constant_initializer(0))
+        wx_b = tf.nn.xw_plus_b(logits_, w, b)
+        is_repeat = tf.reduce_max(tf.square(tf.nn.softmax(wx_b)))
         #print("Output shape is", output, state)
 
         # block repeats
