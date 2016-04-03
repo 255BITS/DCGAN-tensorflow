@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from scipy.io.wavfile import read, write
 import scipy
+import scipy.signal
 import ops
 import math
 import pickle
@@ -15,15 +16,34 @@ def do_imdct(row):
     return mdct.imdct(row, len(row))
 
 
-def convert_mlaudio_to_wav(mlaudio, dimensions, wav_x):
-    audio = np.array(mlaudio['data'])
-    audio = np.reshape(audio,[-1, dimensions])
-    audio = audio[:,0].tolist()
-    imdct_data = np.array(audio).reshape([-1, wav_x])
-    imdct_data = [do_imdct(row) for row in imdct_data]
+def do_istft(X, overlap=4):
+    fftsize=(X.shape[1]-1)*2
+    hop = fftsize // overlap
+    w = scipy.signal.tukey(fftsize+1)[:-1]
+    x = scipy.zeros(X.shape[0]*hop)
+    wsum = scipy.zeros(X.shape[0]*hop) 
+    for n,i in enumerate(range(0, len(x)-fftsize, hop)): 
+        x[i:i+fftsize] += scipy.real(np.fft.irfft(X[n])) * w   # overlap-add
+        wsum[i:i+fftsize] += w ** 2.
+    pos = wsum != 0
+    x[pos] /= wsum[pos]
+    return x
 
-    print("NEW SHAPE", np.shape(imdct_data))
-    mlaudio['data'] = np.array(imdct_data)
+
+def convert_mlaudio_to_wav(mlaudio):
+    data = np.array(mlaudio['data'])
+    audio = data[:,:,0].tolist()
+    audio_right = data[:,:,1].tolist()
+    row_length =mlaudio['stft_row_length']
+    data = np.array(audio).reshape([-1, row_length])
+    data_right =  np.array(audio_right).reshape([-1, row_length])
+    data = do_istft(data)
+    data_right = do_istft(data_right)
+
+
+    data = np.reshape(data, [-1, 1])
+    data_right = np.reshape(data_right, [-1, 1])
+    mlaudio['data'] = np.array(np.concatenate( [data, data_right], 1))
     return mlaudio
 
 
@@ -100,6 +120,7 @@ def ff_nn(input, name):
 
 def scale_up(input):
     with tf.variable_scope("scale"):
+        return tf.nn.sigmoid(input)
 
         output = tf.nn.tanh(input)
         w = tf.get_variable('scale_w', [1], dtype=tf.float32, initializer=tf.constant_initializer(0.001))

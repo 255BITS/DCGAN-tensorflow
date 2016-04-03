@@ -1,48 +1,77 @@
-import scipy
+import scipy, pylab
+import scipy.signal
 import numpy as np
 import tensorflow_wav
-def stft(x, fs, framesz, hop):
-    #print("STFT got", x, fs, framesz, hop)
-    framesamp = int(framesz*fs)
-    hopsamp = int(hop*fs)
-    w = scipy.hanning(framesamp)
-    def do_fft(w,x,i,framesamp):
-        #print("Running FFT for ", i, framesamp)
-        return scipy.fft(w*x[i:i+framesamp])
-    X = scipy.array([do_fft(w,x,i,framesamp) 
-                     for i in range(0, len(x)-framesamp, hopsamp)])
-    #print("X SHAPE IS", len(X), len(X[0]))
-    return X
+from math import sqrt
 
-def istft(X, fs, T, hop):
-    x = scipy.zeros(T*fs)
-    framesamp = X.shape[1]
-    print('fsamp',framesamp)
-    hopsamp = int(hop*fs)
-    for n,i in enumerate(range(0, len(x)-framesamp, hopsamp)):
-        #print("setting i to i+framesamp", n, i, framesamp, i+framesamp)
-        x[i:i+framesamp] += scipy.real(scipy.ifft(X[n]))
-    print(x.shape)
+def fft(x):
+    n = x.shape[0]
+    return scipy.fft(x)
+
+
+def stft(x, fftsize=126, overlap=4):   
+    hop = fftsize // overlap
+    w = scipy.signal.tukey(fftsize+1)[:-1]      # better reconstruction with this trick +1)[:-1]  
+    return np.array([np.fft.rfft(w*x[i:i+fftsize]) for i in range(0, len(x)-fftsize, hop)])
+
+def istft(X, overlap=4):   
+    fftsize=(X.shape[1]-1)*2
+    hop = fftsize // overlap
+    w = scipy.signal.tukey(fftsize+1)[:-1]
+    x = scipy.zeros(X.shape[0]*hop)
+    wsum = scipy.zeros(X.shape[0]*hop) 
+    for n,i in enumerate(range(0, len(x)-fftsize, hop)): 
+        x[i:i+fftsize] += scipy.real(np.fft.irfft(X[n])) * w   # overlap-add
+        wsum[i:i+fftsize] += w ** 2.
+    pos = wsum != 0
+    x[pos] /= wsum[pos]
     return x
 
-
+#def stft(x, fs, framesz, hop):
+#    #print("STFT got", x, fs, framesz, hop)
+#    framesamp = int(framesz*fs)
+#    hopsamp = int(hop*fs)
+#    w = scipy.signal.tukey(framesamp)
+#    def do_fft(w,x,i,framesamp):
+#        #print("Running FFT for ", i, framesamp)
+#        return fft(w*x[i:i+framesamp])
+#    X = scipy.array([do_fft(w,x,i,framesamp) 
+#                     for i in range(0, len(x)-framesamp, hopsamp)])
+#    #print("X SHAPE IS", len(X), len(X[0]))
+#    return X
+#
+#def ifft(x):
+#    n = x.shape[0]
+#    return scipy.ifft(x)
+#def istft(X, fs, T, hop):
+#    x = scipy.zeros(T*fs)
+#    framesamp = X.shape[1]
+#    print('fsamp',framesamp)
+#    hopsamp = int(hop*fs)
+#    for n,i in enumerate(range(0, len(x)-framesamp, hopsamp)):
+#        if(n>=X.shape[0]): 
+#            break
+#        #print("setting i to i+framesamp", n, i, framesamp, i+framesamp, len(X), len(x))
+#        x[i:i+framesamp] += scipy.real(ifft(X[n]))
+#    #print(x.shape)
+#    return x
+#
+#
 
 if __name__ == '__main__':
     wav_path="input.wav"
     wav= tensorflow_wav.get_wav(wav_path)
-    fs=8196/4
-    T=10.
-    x=128.
-    y=128.
-    l=T*fs
-    s = wav['data']
-    print("DATA min, max, mean, stddev",s.min(), s.max(), np.mean(s), np.std(s))
-    data = wav['data'][:fs*T]
+    fs=44100
+    T=20
+    data = wav['data'][:fs*T, 0]
+    data_right = wav['data'][:fs*T, 1]
+
+    print("data, max, mean, stddev",data.min(), data.max(), np.mean(data), np.std(data))
     #data['sampwidth']
-    framesz=(x/fs)/2.
+    framesz=1
     print("fs is ", fs)
     print("Framesz is", framesz)
-    hop=2*(fs)/(fs*y)
+    hop=0.25
     print("Hop is", hop)
     framesamp = int(framesz*fs)
     hopsamp = int(hop*fs)
@@ -50,18 +79,19 @@ if __name__ == '__main__':
     print("hopsamp is", hopsamp, hop, fs)
     print('size is',data-framesamp, 'stride', hopsamp)
 
-    s = stft(data, fs, framesz, hop)
-    #print(s)
-    print("min, max, mean, stddev",s.min(), s.max(), np.mean(s), np.std(s))
+    s = stft(data)
+    s_right = stft(data_right)
+    print(np.shape(s))
 
-    #T=1
-    #si = s
-    print(s.shape)
-    si = istft(s, fs,T, hop)
+    si = istft(s)
+    si_right = istft(s_right)
+    print("simin, max, mean, stddev",si.min(), si.max(), np.mean(si), np.std(si))
     #print('wavdata is ', len(wav['data']))
 
-    #print(si)
-    wav['data']=si
+    print(np.shape(si))
+    si = np.reshape(si, [-1, 1])
+    si_right = np.reshape(si_right, [-1, 1])
+    wav['data'] = np.array(np.concatenate( [si, si_right], 1))
     print('min/max', s.min(), s.max())
     #print(wav)
     #print('data is ',len(data))

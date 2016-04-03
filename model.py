@@ -13,7 +13,7 @@ WAV_HEIGHT=64
 WAV_LENGTH=1
 BITRATE=4096
 WAV_WIDTH=int(BITRATE*WAV_LENGTH/WAV_HEIGHT)
-DIMENSIONS=1
+DIMENSIONS=2
 
 class DCGAN(object):
     def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
