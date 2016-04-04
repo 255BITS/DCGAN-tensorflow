@@ -58,8 +58,10 @@ class DCGAN(object):
 
         if not self.y_dim:
             self.d_bn3 = batch_norm(batch_size, name='d_bn3')
+            self.d_bn4 = batch_norm(batch_size, name='d_bn4')
 
         self.g_bn0 = batch_norm(batch_size, name='g_bn0')
+        self.g_bn01 = batch_norm(batch_size, name='g_bn01')
         self.g_bn1 = batch_norm(batch_size, name='g_bn1')
         self.g_bn2 = batch_norm(batch_size, name='g_bn2')
 
@@ -261,10 +263,10 @@ class DCGAN(object):
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
                     #if(errG > 10):
                     #    errg_range = 4
-                    #elif(errG > 5):
-                    #    errg_range = 3
-                    #else:
-                    errg_range=1
+                    if(errG > 5):
+                        errg_range = 2
+                    else:
+                        errg_range=1
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network
@@ -336,16 +338,17 @@ class DCGAN(object):
             h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
             print('h2', h2.get_shape())
             h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+            h3_reshape = tf.reshape(h3, [self.batch_size, -1])
             print('h3', h3.get_shape())
-            h4_reshape = tf.reshape(h3, [self.batch_size, -1])
+            h4 = lrelu(self.d_bn4(conv2d(h3, self.df_dim*16, name='d_h4_conv')))
+            h4_reshape = tf.reshape(h4, [self.batch_size, -1])
             h4 = linear(h4_reshape, 1, 'd_h3_lin')
-            wav_reshape = tf.reshape(wav, [self.batch_size, -1])
             print('h4', h4.get_shape())
             print("End discriminator creation")
             #sig = tf.nn.sigmoid(h4)
             #lin = linear(h4, 1, 'sig_linear')
             #lstm_lin = linear(h4, 4, 'lstm_linear')
-            lstm_input = h4_reshape
+            lstm_input = h3_reshape
             lstm_layer = lstm.discriminator(lstm_input)
 
             #return lin#lstm_layer#
@@ -360,11 +363,16 @@ class DCGAN(object):
         print('z_', z.get_shape())
         print('self.h0_w', self.h0_w.get_shape())
 
-        self.h0 = tf.reshape(self.z_, [self.batch_size, int(WAV_WIDTH/16), int(WAV_HEIGHT/16) , self.gf_dim * 8])
+        self.h0 = tf.reshape(self.z_, [self.batch_size, int(WAV_WIDTH/32), int(WAV_HEIGHT/32) , self.gf_dim * 32])
         h0 = tf.nn.relu(self.g_bn0(self.h0))
         print('h0',h0.get_shape())
 
-        self.h1, self.h1_w, self.h1_b = deconv2d(h0, 
+        self.h01, self.h01_w, self.h01_b = deconv2d(h0, 
+                [self.batch_size, int(WAV_WIDTH/16), int(WAV_HEIGHT/16), self.gf_dim*8], name='g_h01', with_w=True)
+        h01 = tf.nn.relu(self.g_bn01(self.h01))
+        print('h01',h01.get_shape())
+
+        self.h1, self.h1_w, self.h1_b = deconv2d(h01, 
                 [self.batch_size, int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1', with_w=True)
         h1 = tf.nn.relu(self.g_bn1(self.h1))
         print('h1',h1.get_shape())
@@ -400,12 +408,16 @@ class DCGAN(object):
             print("Sampler creation")
             z = self.z
             # project `z` and reshape
-            h0 = tf.reshape(linear(z, self.gf_dim*8*4*16, 'g_h0_lin'),
-                            [self.batch_size, 8, 8, self.gf_dim * 8])
-            h0 = tf.nn.relu(self.g_bn0(h0, train=False))
-            print('h0', h0.get_shape())
+            h0 = tf.reshape(self.z_, [self.batch_size, int(WAV_WIDTH/32), int(WAV_HEIGHT/32) , self.gf_dim * 32])
+            h0 = tf.nn.relu(self.g_bn0(h0))
+            print('h0',h0.get_shape())
 
-            h1 = deconv2d(h0, [self.batch_size,int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1')
+            h01, h01_w, h01_b = deconv2d(h0, 
+                    [self.batch_size, int(WAV_WIDTH/16), int(WAV_HEIGHT/16), self.gf_dim*8], name='g_h01', with_w=True)
+            h01 = tf.nn.relu(self.g_bn01(h01))
+            print('h01',h01.get_shape())
+
+            h1 = deconv2d(h01, [self.batch_size,int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1')
             h1 = tf.nn.relu(self.g_bn1(h1, train=False))
             print('h1', h1.get_shape())
 
