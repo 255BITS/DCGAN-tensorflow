@@ -8,17 +8,17 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="drums-stft"
+dataset="drums-dwt"
 wav_size=64
 is_crop=False
-batch_size=64
+batch_size=12
 checkpoint_dir="checkpoint"
 bitrate=4096
-song_seconds=10
+song_seconds=1
 song_step=1.0
 z_dim=64
 
-DIMENSIONS=2
+DIMENSIONS=4
 
 
 with tf.Session() as sess:
@@ -44,17 +44,20 @@ with tf.Session() as sess:
         audio = dcgan.sample(batch_z)
         print("Audio shape", np.shape(audio))
 
+        #audio = np.swapaxes(audio, 1, 2)
+        full_audio.append(audio)
+      #  print("Full audio shape", np.shape(full_audio))
       #  audio = np.reshape(audio,[-1, DIMENSIONS])
       #  print("WAV shape", np.shape(audio))
       #  audio = audio.tolist()[:bitrate]
-        samplewav['data']=audio
-        converted = tensorflow_wav.convert_mlaudio_to_wav(samplewav)
-        #converted['data'] = np.reshape(converted['data'], [-1])
-        full_audio.append(audio)
-      #  print("Full audio shape", np.shape(full_audio))
+      full_audio = np.concatenate(full_audio, 0)
+      print("FA shape", np.shape(full_audio))
+      print("Stats min/max/mean/stddev", np.min(audio), np.max(audio), np.mean(audio), np.std(audio))
+      samplewav['data']=np.reshape(full_audio,[-1, 64, DIMENSIONS])
+      converted = tensorflow_wav.convert_mlaudio_to_wav(samplewav)
 
-      print('full_aido', np.shape(full_audio))
-      samplewav['data']=np.concatenate(full_audio, 0)
+      print('converted', np.shape(converted['data']))
+      samplewav['data']=converted['data']
       print(samplewav['rate'], bitrate, len(full_audio))
       #samplewav['data'] = np.reshape(samplewav['data'], [-1])
 

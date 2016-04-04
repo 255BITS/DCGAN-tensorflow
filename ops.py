@@ -70,7 +70,7 @@ def conv2d(input_, output_dim,
         return conv
 
 def deconv2d(input_, output_shape,
-             k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, biasstart=0.5,
+             k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.2, biasstart=0.5,
              name="deconv2d", with_w=False, no_bias=False):
     with tf.variable_scope(name):
         # filter : [height, width, output_channels, in_channels]

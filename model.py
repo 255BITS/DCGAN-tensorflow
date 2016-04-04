@@ -13,7 +13,7 @@ WAV_HEIGHT=64
 WAV_LENGTH=1
 BITRATE=4096
 WAV_WIDTH=int(BITRATE*WAV_LENGTH/WAV_HEIGHT)
-DIMENSIONS=2
+DIMENSIONS=4
 
 class DCGAN(object):
     def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
@@ -275,16 +275,16 @@ class DCGAN(object):
             h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
             print('h3', h3.get_shape())
             h4_reshape = tf.reshape(h3, [self.batch_size, -1])
-            h4 = linear(h4_reshape, 10, 'd_h3_lin')
+            h4 = linear(h4_reshape, 1, 'd_h3_lin')
             print('h4', h4.get_shape())
             print("End discriminator creation")
             #sig = tf.nn.sigmoid(h4)
-            lin = linear(h4, 1, 'sig_linear')
+            #lin = linear(h4, 1, 'sig_linear')
             #lstm_lin = linear(h4, 4, 'lstm_linear')
             #lstm_layer = lstm.discriminator(lstm_lin)
 
             #return lin#lstm_layer#
-            return tf.nn.sigmoid(lin)
+            return tf.nn.sigmoid(h4)
 
     def generator(self, z, y=None):
         if not self.y_dim:

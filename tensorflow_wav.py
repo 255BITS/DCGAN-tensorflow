@@ -8,6 +8,7 @@ import ops
 import math
 import pickle
 import mdct
+import pywt
 
 FRAME_SIZE=(64/2048)
 HOP=(2048-64)/(2048*64)
@@ -19,7 +20,7 @@ def do_imdct(row):
 def do_istft(X, overlap=4):
     fftsize=(X.shape[1]-1)*2
     hop = fftsize // overlap
-    w = scipy.signal.tukey(fftsize+1)[:-1]
+    w = scipy.signal.hamming(fftsize+1)[:-1]
     x = scipy.zeros(X.shape[0]*hop)
     wsum = scipy.zeros(X.shape[0]*hop) 
     for n,i in enumerate(range(0, len(x)-fftsize, hop)): 
@@ -27,23 +28,31 @@ def do_istft(X, overlap=4):
         wsum[i:i+fftsize] += w ** 2.
     pos = wsum != 0
     x[pos] /= wsum[pos]
-    return x
+    return scipy.real(x)
 
+
+def do_idwt(rows):
+    def idwt(elems):
+        main = elems[:,0]
+        detail = elems[:,1]
+        return pywt.idwt(main, detail, 'db1')
+    results = [idwt(rows[i][:]) for i in range(0, len(rows), 1)]
+    return results
 
 def convert_mlaudio_to_wav(mlaudio):
     data = np.array(mlaudio['data'])
-    audio = data[:,:,0].tolist()
-    audio_right = data[:,:,1].tolist()
-    row_length =mlaudio['stft_row_length']
-    data = np.array(audio).reshape([-1, row_length])
-    data_right =  np.array(audio_right).reshape([-1, row_length])
-    data = do_istft(data)
-    data_right = do_istft(data_right)
+    # We split the audio stream into 2, one for each speaker
+    #if the dimensions change so will this function
+    audio, audio_right = np.split(data, 2, 2)
+    #print("Running idwi on data", data.shape)
+    data = do_idwt(audio)
+    data_right = do_idwt(audio_right)
 
-
+    # combine left and right streams, wav uses [-1, channels] as the output format
     data = np.reshape(data, [-1, 1])
     data_right = np.reshape(data_right, [-1, 1])
-    mlaudio['data'] = np.array(np.concatenate( [data, data_right], 1))
+    result =np.array(np.concatenate( [data, data_right], 1))
+    mlaudio['data'] = result
     return mlaudio
 
 
@@ -120,10 +129,9 @@ def ff_nn(input, name):
 
 def scale_up(input):
     with tf.variable_scope("scale"):
-        return tf.nn.sigmoid(input)
 
         output = tf.nn.tanh(input)
-        w = tf.get_variable('scale_w', [1], dtype=tf.float32, initializer=tf.constant_initializer(0.001))
+        w = tf.get_variable('scale_w', [1], dtype=tf.float32, initializer=tf.constant_initializer(0.00002))
         return output/w
 
         raw_output, fft_real_output= tf.split(3, 2, output)
