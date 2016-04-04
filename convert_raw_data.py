@@ -134,8 +134,8 @@ else:
     #add_to_training("datasets/one-large")
     #add_to_training("datasets/youtube-drums-2)
     #add_to_training("datasets/youtube-drums-3")
-    add_to_training('datasets/drums2')
-    #add_to_training('datasets/videogame')
+    #add_to_training('datasets/drums2')
+    add_to_training('datasets/videogame')
 
     #add_to_training("datasets/youtube-drums-120bpm-1")
     #add_to_training("youtube/5")
