@@ -42,14 +42,16 @@ def do_fft(raw):
     zeros[0:len(real)] += real
     return zeros
 
-#breaks down a list of raw data into Nx2x(size/2) chunks,
+#breaks down a list of raw data into Nxsize chunks,
 #where size is the length of the raw pcm data to encode(usually divisible into the bitrate)
-#2 is the dimensions - 1 for mother and 1 for detail information on the dwt wavelet
+# the first 64 entries in the dimension are the main wavelet, followed by 64 detail wavelets
 #and N is the length of the data
 def do_dwt(data, size=128):
     rows = data.reshape([-1, size])
     def breakdown(row):
-        return pywt.dwt(row, 'db1')
+        result = pywt.dwt(row, 'db1')
+        print("Result", np.shape(result))
+        return result
     x = [breakdown(row) for row in rows]
     return np.array(x)
 
@@ -70,6 +72,7 @@ def preprocess(output_file):
         data = wav['data'][:length, 0]
         data_right = wav['data'][:length, 1]
     else:
+        raise("MONO NOT SUPPORTED")
         data = wav['data'][:length]
         data_right = wav['data'][:length]
     
@@ -83,10 +86,11 @@ def preprocess(output_file):
     #dct = [do_dct(row) for row in raw]
     #fft = np.swapaxes(fft, 0, 1)
 
-    data = np.concatenate([dwt, dwt_right], 1)#, [dct]])
-    data = np.swapaxes(data, 0, 1)
-    # the data is now in the form [4, -1, 64]
-    #carefully change the format to [-1, 64, 4] 
+    dwt = np.reshape(dwt, [1, -1, 128])
+    dwt_right = np.reshape(dwt_right, [1, -1, 128])
+    data = np.concatenate([dwt, dwt_right], 0)#, [dct]])
+    # the data is now in the form [2, -1, 128]
+    #carefully change the format to [-1, 128, 2] 
     data = np.swapaxes(np.swapaxes(data, 0, 1), 1, 2)
     wav['data']=data
     print("Data is of the form", np.shape(data))
