@@ -131,8 +131,9 @@ def scale_up(input):
     with tf.variable_scope("scale"):
 
         output = tf.nn.tanh(input)
-        w = tf.get_variable('g_scale_w', [1], dtype=tf.float32, initializer=tf.constant_initializer(0.00002))
-        w2 = tf.get_variable('g_scale_w2', [1], dtype=tf.float32, initializer=tf.constant_initializer(0.00002))
+        w = w2 = 0.00002
+        #w = tf.get_variable('g_scale_w', [1], dtype=tf.float32, initializer=tf.constant_initializer(0.00002))
+        #w2 = tf.get_variable('g_scale_w2', [1], dtype=tf.float32, initializer=tf.constant_initializer(0.00002))
         l_main, l_det, r_main, r_det = tf.split(3, 4, output)
         l_main = l_main / w
         r_main = r_main / w

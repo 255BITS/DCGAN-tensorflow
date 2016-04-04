@@ -258,10 +258,12 @@ class DCGAN(object):
                         #self.writer.add_summary(summary_str, counter)
 
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                    #if(errG > 10):
-                    #    errg_range = 2
-                    #else:
-                    errg_range=2
+                    if(errG > 10):
+                        errg_range = 4
+                    elif(errG > 5):
+                        errg_range = 3
+                    else:
+                        errg_range=2
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network
@@ -279,27 +281,11 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG, errVAE))
 
-                    SAVE_COUNT=50
-                    SAMPLE_COUNT=1e10
+                    SAVE_COUNT=20
                     
                     print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
                         print("Saving after next batch")
-                    if np.mod(counter,SAMPLE_COUNT) == SAMPLE_COUNT-2:
-                        all_samples = []
-                        for i in range(3):
-                            samples = self.sample()
-
-                            all_samples += [samples]
-                        samplewav = sample.copy()
-                        samplewav['data']=all_samples[0]
-                        #print(samples)
-                        filename = "./samples/%s_%s_train.wav"% (epoch, idx)
-                        data = np.array(samplewav['data'][0])
-                        tensorflow_wav.save_wav(samplewav, filename )
-                        print("[Sample] min %d max %d avg %d mean %d stddev %d" % (data.min(), data.max(), np.average(data), np.mean(data), np.std(data)))
-                        print("[Sample] saved in "+ filename)
-
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-2:
                         if(errD_fake == 0 or errD_fake > 23 or errG > 23):
                             print("Refusing to save, error rate above threshold")
@@ -310,7 +296,7 @@ class DCGAN(object):
 
     def sample(self, bz=None):
         if(bz == None):
-            bz = np.random.uniform(-1, 1, [self.batch_size, self.z_dim]) 
+            bz = np.random.uniform(-1,1, [self.batch_size, self.z_dim]) 
         result = self.sess.run(
             self.sampler,
             feed_dict={self.z: bz}
@@ -336,15 +322,17 @@ class DCGAN(object):
             print('h3', h3.get_shape())
             h4_reshape = tf.reshape(h3, [self.batch_size, -1])
             h4 = linear(h4_reshape, 1, 'd_h3_lin')
+            wav_reshape = linear(tf.reshape(wav, [self.batch_size, -1]), 512, 'd_wav_lstm')
             print('h4', h4.get_shape())
             print("End discriminator creation")
             #sig = tf.nn.sigmoid(h4)
             #lin = linear(h4, 1, 'sig_linear')
             #lstm_lin = linear(h4, 4, 'lstm_linear')
-            #lstm_layer = lstm.discriminator(lstm_lin)
+            lstm_input = wav_reshape
+            lstm_layer = lstm.discriminator(lstm_input)
 
             #return lin#lstm_layer#
-            return tf.nn.sigmoid(h4)
+            return tf.nn.sigmoid(lstm_layer*h4)
 
     def generator(self, z, y=None):
         if not self.y_dim:

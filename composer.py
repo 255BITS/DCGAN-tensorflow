@@ -8,7 +8,7 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="dwtvae"
+dataset="vg-dwt-lstm4"
 wav_size=64
 is_crop=False
 batch_size=128
@@ -40,7 +40,7 @@ with tf.Session() as sess:
         batch_z = np.random.uniform(-1, 1, [batch_size, z_dim]) \
                     .astype(np.float32)
         second += song_step
-        batch_z[0]=float(second)/song_seconds
+        #batch_z[0]=float(second)/song_seconds
         audio = dcgan.sample(batch_z)
         print("Audio shape", np.shape(audio))
 
