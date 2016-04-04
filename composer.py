@@ -13,7 +13,7 @@ wav_size=64
 is_crop=False
 batch_size=128
 checkpoint_dir="checkpoint"
-bitrate=4096
+bitrate=4096*2
 song_seconds=1
 song_step=1.0
 z_dim=64
@@ -53,10 +53,19 @@ with tf.Session() as sess:
       full_audio = np.concatenate(full_audio, 0)
       print("FA shape", np.shape(full_audio))
       print("Stats min/max/mean/stddev", np.min(audio), np.max(audio), np.mean(audio), np.std(audio))
+      maxWavValue = 50000
+
+      batch_wavs = full_audio
+      batch_wavs = np.dot(batch_wavs, (maxWavValue*2))
+      batch_wavs = np.add(batch_wavs, -1*(maxWavValue))
+      print('FA', np.min(batch_wavs), np.max(batch_wavs))
+      full_audio = batch_wavs
+
+
       samplewav['data']=np.reshape(full_audio,[-1, 64, DIMENSIONS])
       converted = tensorflow_wav.convert_mlaudio_to_wav(samplewav)
 
-      print('converted', np.shape(converted['data']))
+      print('converted', np.shape(converted['data']), np.min(batch_wavs), np.max(batch_wavs))
       samplewav['data']=converted['data']
       print(samplewav['rate'], bitrate, len(full_audio))
       #samplewav['data'] = np.reshape(samplewav['data'], [-1])

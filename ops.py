@@ -70,7 +70,7 @@ def conv2d(input_, output_dim,
         return conv
 
 def deconv2d(input_, output_shape,
-             k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.2, biasstart=0.5,
+             k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, biasstart=0.5,
              name="deconv2d", with_w=False, no_bias=False):
     with tf.variable_scope(name):
         # filter : [height, width, output_channels, in_channels]
@@ -116,3 +116,19 @@ def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.5, with_w=
             return tf.matmul(input_, matrix) + bias, matrix, bias
         else:
             return tf.matmul(input_, matrix) + bias
+
+def fully_connected(input_, output_size, scope=None, stddev=0.1, with_bias = True):
+    shape = input_.get_shape().as_list()
+
+    with tf.variable_scope(scope or "FC"):
+        matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,
+            tf.random_normal_initializer(stddev=stddev))
+
+        result = tf.matmul(input_, matrix)
+
+        if with_bias:
+            bias = tf.get_variable("bias", [1, output_size],
+                initializer=tf.random_normal_initializer(stddev=stddev))
+            result += bias*tf.ones([shape[0], 1], dtype=tf.float32)
+
+        return result
