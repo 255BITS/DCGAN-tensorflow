@@ -18,12 +18,12 @@ song_seconds=1
 song_step=1.0
 z_dim=64
 
-DIMENSIONS=4
+DIMENSIONS=2
 
 
 with tf.Session() as sess:
     with tf.device('/cpu:0'):
-      dcgan = DCGAN(sess, wav_size=wav_size, batch_size=batch_size,
+      dcgan = DCGAN(sess, batch_size=batch_size,
         dataset_name=dataset, is_crop=is_crop, checkpoint_dir=checkpoint_dir)
       dcgan.load(checkpoint_dir)
 

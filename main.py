@@ -7,13 +7,12 @@ from utils import pp, visualize, to_json
 
 flags = tf.app.flags
 flags.DEFINE_integer("epoch", 25, "Epoch to train [25]")
-flags.DEFINE_float("learning_rate_g", 0.0005, "Learning rate of for adam [0.0002]")
+flags.DEFINE_float("learning_rate_g", 0.0003, "Learning rate of for adam [0.0002]")
 flags.DEFINE_float("learning_rate_v", 0.0002, "Learning rate of for adam [0.0002]")
 flags.DEFINE_float("learning_rate_d", 0.0001, "Learning rate of for adam [0.0002]")
 flags.DEFINE_float("beta1", 0.5, "Momentum term of adam [0.5]")
 flags.DEFINE_integer("train_size", np.inf, "The size of train wavs [np.inf]")
 flags.DEFINE_integer("batch_size", 64, "The size of batch wavs [64]")
-flags.DEFINE_integer("wav_size", 108, "The size of wav to use (will be center cropped) [108]")
 flags.DEFINE_string("dataset", "celebA", "The name of dataset [celebA, mnist, lsun]")
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
 flags.DEFINE_string("sample_dir", "samples", "Directory name to save the wav samples [samples]")
@@ -32,10 +31,10 @@ def main(_):
     with tf.Session() as sess:
 
         if FLAGS.dataset == 'mnist':
-            dcgan = DCGAN(sess, wav_size=FLAGS.wav_size, batch_size=FLAGS.batch_size, y_dim=10,
+            dcgan = DCGAN(sess,  batch_size=FLAGS.batch_size, y_dim=10,
                     dataset_name=FLAGS.dataset, is_crop=FLAGS.is_crop, checkpoint_dir=FLAGS.checkpoint_dir)
         else:
-            dcgan = DCGAN(sess, wav_size=FLAGS.wav_size, batch_size=FLAGS.batch_size,
+            dcgan = DCGAN(sess,  batch_size=FLAGS.batch_size,
                     dataset_name=FLAGS.dataset, is_crop=FLAGS.is_crop, checkpoint_dir=FLAGS.checkpoint_dir)
 
         if FLAGS.is_train:

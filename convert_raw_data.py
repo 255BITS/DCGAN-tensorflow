@@ -12,8 +12,6 @@ import pywt
 parser = argparse.ArgumentParser(description='Converts data to mlaudio format.')
 parser.add_argument('--sanity', action='store_true')
 
-DIMENSIONS=4
-
 args = parser.parse_args()
 print(args)
 BITRATE = 8192
@@ -50,7 +48,6 @@ def do_dwt(data, size=128):
     rows = data.reshape([-1, size])
     def breakdown(row):
         result = pywt.dwt(row, 'db1')
-        print("Result", np.shape(result))
         return result
     x = [breakdown(row) for row in rows]
     return np.array(x)

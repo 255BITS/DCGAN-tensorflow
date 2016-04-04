@@ -8,15 +8,13 @@ from utils import *
 import tensorflow_wav
 import lstm
 
-WAV_SIZE=64
-WAV_HEIGHT=64
-WAV_LENGTH=1
+WAV_HEIGHT=128
 BITRATE=4096
-WAV_WIDTH=int(BITRATE*WAV_LENGTH/WAV_HEIGHT)
-DIMENSIONS=4
+WAV_WIDTH=128
+DIMENSIONS=2
 
 class DCGAN(object):
-    def __init__(self, sess, wav_size=WAV_SIZE, is_crop=True,
+    def __init__(self, sess, is_crop=True,
                  batch_size=64, sample_size = 2, wav_shape=[WAV_WIDTH, WAV_HEIGHT, DIMENSIONS],
                  y_dim=None, z_dim=64, gf_dim=64, df_dim=64,
                  gfc_dim=1024, dfc_dim=1024, c_dim=1, dataset_name='default',
@@ -37,7 +35,6 @@ class DCGAN(object):
         self.sess = sess
         self.is_crop = is_crop
         self.batch_size = batch_size
-        self.wav_size = wav_size
         self.sample_size = sample_size
         self.wav_shape = wav_shape
 
@@ -80,7 +77,7 @@ class DCGAN(object):
 
     def build_model(self):
 
-        self.wavs = tf.placeholder(tf.float32, [self.batch_size, WAV_LENGTH*BITRATE, DIMENSIONS],
+        self.wavs = tf.placeholder(tf.float32, [self.batch_size, WAV_HEIGHT*WAV_WIDTH, DIMENSIONS],
                                     name='real_wavs')
         self.batch_flatten = self.normalize_wav(tf.reshape(self.wavs, [self.batch_size, -1]))
 
@@ -320,7 +317,7 @@ class DCGAN(object):
     def sample(self):
         result = self.sess.run(
             self.sampler,
-            feed_dict={self.wavs: np.ones((self.batch_size, WAV_WIDTH* WAV_HEIGHT, 4))}
+            feed_dict={self.wavs: np.ones((self.batch_size, WAV_WIDTH* WAV_HEIGHT, DIMENSIONS))}
         )
         print("len res", np.shape(result))
         return result
@@ -342,24 +339,24 @@ class DCGAN(object):
             print('h3', h3.get_shape())
             h4_reshape = tf.reshape(h3, [self.batch_size, -1])
             h4 = linear(h4_reshape, 1, 'd_h3_lin')
-            wav_reshape = linear(tf.reshape(wav, [self.batch_size, -1]), 512, 'd_wav_lstm')
+            wav_reshape = tf.reshape(wav, [self.batch_size, -1])
             print('h4', h4.get_shape())
             print("End discriminator creation")
             #sig = tf.nn.sigmoid(h4)
             #lin = linear(h4, 1, 'sig_linear')
             #lstm_lin = linear(h4, 4, 'lstm_linear')
-            lstm_input = wav_reshape
+            lstm_input = h4_reshape
             lstm_layer = lstm.discriminator(lstm_input)
 
             #return lin#lstm_layer#
-            return tf.nn.sigmoid(h4)
+            return tf.nn.sigmoid(h4*lstm_layer)
 
     def generator(self, y=None):
         print("Generator creation")
         z = self.z
         print('z', z.get_shape())
         # project `z` and reshape
-        self.z_, self.h0_w, self.h0_b = linear(z, self.gf_dim*8*4*4, 'g_h0_lin', with_w=True)
+        self.z_, self.h0_w, self.h0_b = linear(z, self.gf_dim*8*4*16, 'g_h0_lin', with_w=True)
         print('z_', z.get_shape())
         print('self.h0_w', self.h0_w.get_shape())
 
@@ -403,8 +400,8 @@ class DCGAN(object):
             print("Sampler creation")
             z = self.z
             # project `z` and reshape
-            h0 = tf.reshape(linear(z, self.gf_dim*8*4*4, 'g_h0_lin'),
-                            [-1, 4, 4, self.gf_dim * 8])
+            h0 = tf.reshape(linear(z, self.gf_dim*8*4*16, 'g_h0_lin'),
+                            [self.batch_size, 4, 16, self.gf_dim * 8])
             h0 = tf.nn.relu(self.g_bn0(h0, train=False))
             print('h0', h0.get_shape())
 
