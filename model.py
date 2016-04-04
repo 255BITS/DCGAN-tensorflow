@@ -41,6 +41,8 @@ class DCGAN(object):
         self.sample_size = sample_size
         self.wav_shape = wav_shape
 
+        self.net_size_q=512
+        self.keep_prob = 0.9
         self.y_dim = y_dim
         self.z_dim = z_dim
 
@@ -51,6 +53,7 @@ class DCGAN(object):
         self.dfc_dim = dfc_dim
 
         self.c_dim = c_dim
+
 
         # batch normalization : deals with poor initialization helps gradient flow
         self.d_bn1 = batch_norm(batch_size, name='d_bn1')
@@ -76,6 +79,7 @@ class DCGAN(object):
 
         self.wavs = tf.placeholder(tf.float32, [self.batch_size, WAV_LENGTH*BITRATE, DIMENSIONS],
                                     name='real_wavs')
+        self.batch_flatten = tf.reshape(self.wavs, [self.batch_size, -1])
 
         self.z = tf.placeholder(tf.float32, [None, self.z_dim],
                                 name='z')
@@ -84,15 +88,20 @@ class DCGAN(object):
         #self.encoded_wavs = tf.reshape(self.encoded_wavs, [self.batch_size]+self.wav_shape)
         #self.z_sum = tf.histogram_summary("z", self.z)
 
+        self.z_mean, self.z_log_sigma_sq = self.encoder()
+
         print("shapes d_wav", self.wav_shape, self.wavs.get_shape())
         d_wav = tf.reshape(self.wavs, [self.batch_size] + self.wav_shape)
         self.G = self.generator(self.z)
+        self.batch_reconstruct_flatten = tf.reshape(self.G, [self.batch_size, -1])
+
         print("G is", self.G.get_shape())
         self.D = self.discriminator(d_wav, reuse=None)
 
         self.sampler = self.sampler(self.z)
         self.D_ = self.discriminator(self.G, reuse=True)
         
+        self.create_vae_loss_terms()
 
         #self.d_sum = tf.histogram_summary("d", self.D)
         #self.d__sum = tf.histogram_summary("d_", self.D_)
@@ -113,8 +122,50 @@ class DCGAN(object):
 
         self.d_vars = [var for var in t_vars if 'd_' in var.name]
         self.g_vars = [var for var in t_vars if 'g_' in var.name]
+        self.q_vars = [var for var in t_vars if'_q_' in var.name]
+        self.vae_vars = self.q_vars+self.g_vars
 
         self.saver = tf.train.Saver()
+    def create_vae_loss_terms(self):
+      # The loss is composed of two terms:
+      # 1.) The reconstruction loss (the negative log probability
+      #     of the input under the reconstructed Bernoulli distribution
+      #     induced by the decoder in the data space).
+      #     This can be interpreted as the number of "nats" required
+      #     for reconstructing the input when the activation in latent
+      #     is given.
+      # Adding 1e-10 to avoid evaluatio of log(0.0)
+      reconstr_loss = \
+          -tf.reduce_sum(self.batch_flatten * tf.log(1e-10 + self.batch_reconstruct_flatten)
+                         + (1-self.batch_flatten) * tf.log(1e-10 + 1 - self.batch_reconstruct_flatten), 1)
+      # 2.) The latent loss, which is defined as the Kullback Leibler divergence
+      ##    between the distribution in latent space induced by the encoder on
+      #     the data and some prior. This acts as a kind of regularizer.
+      #     This can be interpreted as the number of "nats" required
+      #     for transmitting the the latent space distribution given
+      #     the prior.
+      latent_loss = -0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq
+                                         - tf.square(self.z_mean)
+                                         - tf.exp(self.z_log_sigma_sq), 1)
+      self.vae_loss = tf.reduce_mean(reconstr_loss + latent_loss) / (WAV_WIDTH * WAV_HEIGHT) # average over batch and pixel
+
+    def encode(self, X):
+      """Transform data by mapping it into the latent space."""
+      # Note: This maps to mean of distribution, we could alternatively
+      # sample from Gaussian distribution
+      return self.sess.run(self.z_mean, feed_dict={self.batch: X})
+
+
+    def encoder(self):
+      # Generate probabilistic encoder (recognition network), which
+      # maps inputs onto a normal distribution in latent space.
+      # The transformation is parametrized and can be learned.
+      H1 = tf.nn.dropout(tf.nn.softplus(linear(self.batch_flatten, self.net_size_q, 'q_q_lin1')), self.keep_prob)
+      H2 = tf.nn.dropout(tf.nn.softplus(linear(H1, self.net_size_q, 'vae_q_lin2')), self.keep_prob)
+      z_mean = linear(H2, self.z_dim, 'vae_q_lin3_mean')
+      z_log_sigma_sq = linear(H2, self.z_dim, 'vae_q_lin3_log_sigma_sq')
+      return (z_mean, z_log_sigma_sq)
+
 
     def train(self, config):
         """Train DCGAN"""
@@ -126,7 +177,9 @@ class DCGAN(object):
         d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
                           .minimize(self.d_loss, var_list=self.d_vars)
         g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
-                          .minimize(self.g_loss, var_list=self.g_vars)
+                          .minimize(self.g_loss, var_list=self.vae_vars)
+        vae_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
+                          .minimize(self.vae_loss, var_list=self.vae_vars)
 
 
         self.saver = tf.train.Saver()
@@ -182,8 +235,14 @@ class DCGAN(object):
                     batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
                                 .astype(np.float32)
                     batch_z[0]=float(i)/np.shape(batch_wavs_multiple)[0]
-                    print("batch z 0 = ", batch_z[0][0], np.shape(batch_wavs_multiple))
+                    maxWavValue = 50000
+                    batch_wavs = np.dot(np.array(batch_wavs, np.float32), 1.0/(maxWavValue*2))
+                    batch_wavs = np.add(batch_wavs, 0.5)
+                    print("Min:", np.min(batch_wavs))
+                    print("Max:", np.max(batch_wavs))
 
+                    _ = self.sess.run((vae_optim, self.vae_loss),
+                            feed_dict={self.wavs: batch_wavs, self.z: batch_z})
                     #if(errD_fake > 10):
                     #    errd_range = 3
                     #elif(errD_fake > 8):
@@ -195,7 +254,7 @@ class DCGAN(object):
                         #print("discrim ", errd_range)
                         # Update D network
                         _= self.sess.run([d_optim],
-                            feed_dict={ self.wavs: batch_wavs, self.z: batch_z })
+                                feed_dict={ self.wavs: batch_wavs, self.z: batch_z })
                         #self.writer.add_summary(summary_str, counter)
 
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
@@ -207,17 +266,18 @@ class DCGAN(object):
                         #print("generating ", errg_range)
                         # Update G network
                         _= self.sess.run([g_optim],
-                            feed_dict={ self.z: batch_z })
+                                feed_dict={ self.z: batch_z })
                         #self.writer.add_summary(summary_str, counter)
 
                     errD_fake = self.d_loss_fake.eval({self.z: batch_z})
                     errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
                     errG = self.g_loss.eval({self.z: batch_z})
+                    errVAE = self.vae_loss.eval({self.wavs: batch_wavs, self.z: batch_z})
 
                     counter += 1
-                    print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f" \
+                    print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f vae_loss: %.8f" \
                         % (epoch, idx, batch_idxs,
-                            time.time() - start_time, errD_fake, errD_real, errG))
+                            time.time() - start_time, errD_fake, errD_real, errG, errVAE))
 
                     SAVE_COUNT=50
                     SAMPLE_COUNT=1e10
