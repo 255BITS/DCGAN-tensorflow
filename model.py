@@ -8,9 +8,8 @@ from utils import *
 import tensorflow_wav
 import lstm
 
-WAV_HEIGHT=128
-BITRATE=4096
-WAV_WIDTH=128
+WAV_HEIGHT=64
+WAV_WIDTH=64
 DIMENSIONS=2
 
 class DCGAN(object):
@@ -331,7 +330,7 @@ class DCGAN(object):
         if not self.y_dim:
             print("Discriminator creation")
             print('wav', wav.get_shape())
-            h0 = lrelu(conv2d(wav, self.df_dim, name='d_h0_conv'))
+            h0 = lrelu(conv2d(wav, self.df_dim, name='d_h0_conv', k_h=4, k_w=4, padding='VALID'))
             print('h0', h0.get_shape())
             h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
             print('h1', h1.get_shape())
@@ -340,9 +339,7 @@ class DCGAN(object):
             h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
             h3_reshape = tf.reshape(h3, [self.batch_size, -1])
             print('h3', h3.get_shape())
-            h4 = lrelu(self.d_bn4(conv2d(h3, self.df_dim*16, name='d_h4_conv')))
-            h4_reshape = tf.reshape(h4, [self.batch_size, -1])
-            h4 = linear(h4_reshape, 1, 'd_h3_lin')
+            h4 = linear(h3_reshape, 1, 'd_h3_lin')
             print('h4', h4.get_shape())
             print("End discriminator creation")
             #sig = tf.nn.sigmoid(h4)
@@ -359,20 +356,15 @@ class DCGAN(object):
         z = self.z
         print('z', z.get_shape())
         # project `z` and reshape
-        self.z_, self.h0_w, self.h0_b = linear(z, self.gf_dim*8*4*16, 'g_h0_lin', with_w=True)
+        self.z_, self.h0_w, self.h0_b = linear(z, self.gf_dim*8*4*4, 'g_h0_lin', with_w=True)
         print('z_', z.get_shape())
         print('self.h0_w', self.h0_w.get_shape())
 
-        self.h0 = tf.reshape(self.z_, [self.batch_size, int(WAV_WIDTH/32), int(WAV_HEIGHT/32) , self.gf_dim * 32])
-        h0 = tf.nn.relu(self.g_bn0(self.h0))
-        print('h0',h0.get_shape())
+        self.h0 = tf.reshape(self.z_, [self.batch_size, int(WAV_WIDTH/16), int(WAV_HEIGHT/16) , self.gf_dim * 8])
+        self.h0 = tf.nn.relu(self.g_bn0(self.h0))
+        print('h0',self.h0.get_shape())
 
-        self.h01, self.h01_w, self.h01_b = deconv2d(h0, 
-                [self.batch_size, int(WAV_WIDTH/16), int(WAV_HEIGHT/16), self.gf_dim*8], name='g_h01', with_w=True)
-        h01 = tf.nn.relu(self.g_bn01(self.h01))
-        print('h01',h01.get_shape())
-
-        self.h1, self.h1_w, self.h1_b = deconv2d(h01, 
+        self.h1, self.h1_w, self.h1_b = deconv2d(self.h0, 
                 [self.batch_size, int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1', with_w=True)
         h1 = tf.nn.relu(self.g_bn1(self.h1))
         print('h1',h1.get_shape())
@@ -408,16 +400,11 @@ class DCGAN(object):
             print("Sampler creation")
             z = self.z
             # project `z` and reshape
-            h0 = tf.reshape(self.z_, [self.batch_size, int(WAV_WIDTH/32), int(WAV_HEIGHT/32) , self.gf_dim * 32])
+            h0 = tf.reshape(self.z_, [self.batch_size, int(WAV_WIDTH/16), int(WAV_HEIGHT/16) , self.gf_dim * 8])
             h0 = tf.nn.relu(self.g_bn0(h0))
             print('h0',h0.get_shape())
 
-            h01, h01_w, h01_b = deconv2d(h0, 
-                    [self.batch_size, int(WAV_WIDTH/16), int(WAV_HEIGHT/16), self.gf_dim*8], name='g_h01', with_w=True)
-            h01 = tf.nn.relu(self.g_bn01(h01))
-            print('h01',h01.get_shape())
-
-            h1 = deconv2d(h01, [self.batch_size,int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1')
+            h1 = deconv2d(h0, [self.batch_size,int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1')
             h1 = tf.nn.relu(self.g_bn1(h1, train=False))
             print('h1', h1.get_shape())
 

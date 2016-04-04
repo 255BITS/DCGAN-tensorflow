@@ -8,10 +8,10 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="vg-dwt-lstm4"
+dataset="strided"
 wav_size=64
 is_crop=False
-batch_size=128
+batch_size=4
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 song_seconds=1
@@ -59,7 +59,7 @@ with tf.Session() as sess:
       full_audio = batch_wavs
 
 
-      samplewav['data']=np.reshape(full_audio,[-1, 128, DIMENSIONS])
+      samplewav['data']=np.reshape(full_audio,[-1, 64, DIMENSIONS])
       converted = tensorflow_wav.convert_mlaudio_to_wav(samplewav)
 
       print('converted', np.shape(converted['data']), np.min(batch_wavs), np.max(batch_wavs))
