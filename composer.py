@@ -53,11 +53,8 @@ with tf.Session() as sess:
       full_audio = np.concatenate(full_audio, 0)
       print("FA shape", np.shape(full_audio))
       print("Stats min/max/mean/stddev", np.min(audio), np.max(audio), np.mean(audio), np.std(audio))
-      maxWavValue = 50000
 
       batch_wavs = full_audio
-      batch_wavs = np.dot(batch_wavs, (maxWavValue*2))
-      batch_wavs = np.add(batch_wavs, -1*(maxWavValue))
       print('FA', np.min(batch_wavs), np.max(batch_wavs))
       full_audio = batch_wavs
 
