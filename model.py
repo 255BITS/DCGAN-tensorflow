@@ -401,7 +401,7 @@ class DCGAN(object):
             z = self.z
             # project `z` and reshape
             h0 = tf.reshape(linear(z, self.gf_dim*8*4*16, 'g_h0_lin'),
-                            [self.batch_size, 4, 16, self.gf_dim * 8])
+                            [self.batch_size, 8, 8, self.gf_dim * 8])
             h0 = tf.nn.relu(self.g_bn0(h0, train=False))
             print('h0', h0.get_shape())
 
