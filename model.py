@@ -183,11 +183,11 @@ class DCGAN(object):
 
         #print('g_vars', [shape.get_shape() for shape in self.g_vars])
         #print('d_vars', [shape.get_shape() for shape in self.d_vars])
-        d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
+        d_optim = tf.train.AdamOptimizer(config.learning_rate_d, beta1=config.beta1) \
                           .minimize(self.d_loss, var_list=self.d_vars)
-        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
+        g_optim = tf.train.AdamOptimizer(config.learning_rate_g, beta1=config.beta1) \
                           .minimize(self.g_loss, var_list=self.vae_vars)
-        vae_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
+        vae_optim = tf.train.AdamOptimizer(config.learning_rate_v, beta1=config.beta1) \
                           .minimize(self.vae_loss, var_list=self.vae_vars)
 
 
@@ -261,12 +261,12 @@ class DCGAN(object):
                         #self.writer.add_summary(summary_str, counter)
 
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                    if(errG > 10):
-                        errg_range = 4
-                    elif(errG > 5):
-                        errg_range = 3
-                    else:
-                        errg_range=2
+                    #if(errG > 10):
+                    #    errg_range = 4
+                    #elif(errG > 5):
+                    #    errg_range = 3
+                    #else:
+                    errg_range=1
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network
@@ -278,17 +278,17 @@ class DCGAN(object):
                     errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
                     errG = self.g_loss.eval({self.wavs: batch_wavs})
                     errVAE = self.vae_loss.eval({self.wavs: batch_wavs})
-                    rG = self.G.eval({self.wavs: batch_wavs})
-                    H4 = self.h4.eval({self.wavs: batch_wavs})
-                    bf = self.batch_flatten.eval({self.wavs: batch_wavs})
-                    brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
-                    z = self.z.eval({self.wavs: batch_wavs})
+                    #rG = self.G.eval({self.wavs: batch_wavs})
+                    #H4 = self.h4.eval({self.wavs: batch_wavs})
+                    #bf = self.batch_flatten.eval({self.wavs: batch_wavs})
+                    #brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
+                    #z = self.z.eval({self.wavs: batch_wavs})
 
-                    print("H4", np.min(H4), np.max(H4))
-                    print("z", np.min(z), np.max(z))
-                    print("bf", np.min(bf), np.max(bf))
-                    print("brf", np.min(brf), np.max(brf))
-                    print("rG", np.min(rG), np.max(rG))
+                    #print("H4", np.min(H4), np.max(H4))
+                    #print("z", np.min(z), np.max(z))
+                    #print("bf", np.min(bf), np.max(bf))
+                    #print("brf", np.min(brf), np.max(brf))
+                    #print("rG", np.min(rG), np.max(rG))
 
                     counter += 1
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f vae_loss: %.8f" \
@@ -308,14 +308,11 @@ class DCGAN(object):
                             self.save(config.checkpoint_dir, counter)
 
 
-    def sample(self, bz=None):
-        if(bz == None):
-            bz = np.random.uniform(-1,1, [self.batch_size, self.z_dim]) 
+    def sample(self):
         result = self.sess.run(
             self.sampler,
             feed_dict={self.wavs: np.ones((self.batch_size, WAV_WIDTH* WAV_HEIGHT, 4))}
         )
-        print("len z", np.shape(bz))
         print("len res", np.shape(result))
         return result
 
