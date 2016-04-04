@@ -131,25 +131,13 @@ def scale_up(input):
     with tf.variable_scope("scale"):
 
         output = tf.nn.tanh(input)
-        w = w2 = 0.00002
+        w = w2 = 46340
         #w = tf.get_variable('g_scale_w', [1], dtype=tf.float32, initializer=tf.constant_initializer(0.00002))
         #w2 = tf.get_variable('g_scale_w2', [1], dtype=tf.float32, initializer=tf.constant_initializer(0.00002))
         l_main, l_det, r_main, r_det = tf.split(3, 4, output)
-        l_main = l_main / w
-        r_main = r_main / w
-        l_det = l_det / w2
-        r_det = r_det / w2
+        l_main = l_main * w
+        r_main = r_main * w
+        l_det = l_det * w2
+        r_det = r_det * w2
         return tf.concat(3, [l_main, l_det, r_main, r_det])
 
-        raw_output, fft_real_output= tf.split(3, 2, output)
-        sign = tf.sign(raw_output)
-
-        #raw = tf.exp(tf.abs(10.8*raw_output))*sign
-        raw = raw_output * 32768
-
-        #new_fft = ff_nn(fft_output, 'fft')
-        #complex = tf.complex(fft_real_output, fft_imag_output)
-        #fft = complex / w
-        fft = fft_real_output / w
-
-        return tf.concat(3, [raw, fft])

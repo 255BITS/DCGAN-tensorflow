@@ -73,11 +73,16 @@ class DCGAN(object):
         self.checkpoint_dir = checkpoint_dir
         self.build_model()
 
+    def normalize_wav(self,wav):
+        maxWavValue = 46340
+        wav = (wav+maxWavValue)/(2*maxWavValue)#tf.add(tf.div(wav,(maxWavValue*2)), 0.5)
+        return wav
+
     def build_model(self):
 
         self.wavs = tf.placeholder(tf.float32, [self.batch_size, WAV_LENGTH*BITRATE, DIMENSIONS],
                                     name='real_wavs')
-        self.batch_flatten = tf.reshape(self.wavs, [self.batch_size, -1])
+        self.batch_flatten = self.normalize_wav(tf.reshape(self.wavs, [self.batch_size, -1]))
 
 
         self.z_mean, self.z_log_sigma_sq = self.encoder()
@@ -97,7 +102,7 @@ class DCGAN(object):
         print("shapes d_wav", self.wav_shape, self.wavs.get_shape())
         d_wav = tf.reshape(self.wavs, [self.batch_size] + self.wav_shape)
         self.G = self.generator()
-        self.batch_reconstruct_flatten = tf.reshape(self.G, [self.batch_size, -1])
+        self.batch_reconstruct_flatten = self.normalize_wav(tf.reshape(self.G, [self.batch_size, -1]))
 
         print("G is", self.G.get_shape())
         self.D = self.discriminator(d_wav, reuse=None)
@@ -236,9 +241,6 @@ class DCGAN(object):
                 errG = 0
                 for i, batch_wavs in enumerate(batch_wavs_multiple):
                     idx+=1
-                    maxWavValue = 50000
-                    batch_wavs = np.dot(np.array(batch_wavs, np.float32), 1.0/(maxWavValue*2))
-                    batch_wavs = np.add(batch_wavs, 0.5)
                     print("Min:", np.min(batch_wavs))
                     print("Max:", np.max(batch_wavs))
 
@@ -276,11 +278,17 @@ class DCGAN(object):
                     errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
                     errG = self.g_loss.eval({self.wavs: batch_wavs})
                     errVAE = self.vae_loss.eval({self.wavs: batch_wavs})
+                    rG = self.G.eval({self.wavs: batch_wavs})
                     H4 = self.h4.eval({self.wavs: batch_wavs})
-                    sig = self.sig.eval({self.wavs: batch_wavs})
+                    bf = self.batch_flatten.eval({self.wavs: batch_wavs})
+                    brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
+                    z = self.z.eval({self.wavs: batch_wavs})
 
                     print("H4", np.min(H4), np.max(H4))
-                    print("sig", np.min(sig), np.max(sig))
+                    print("z", np.min(z), np.max(z))
+                    print("bf", np.min(bf), np.max(bf))
+                    print("brf", np.min(brf), np.max(brf))
+                    print("rG", np.min(rG), np.max(rG))
 
                     counter += 1
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f vae_loss: %.8f" \
@@ -375,12 +383,11 @@ class DCGAN(object):
         #self.h4_output = fully_connected(self.h4, WAV_WIDTH*WAV_HEIGHT*DIMENSIONS, 'fully_connected_g_h4')
         #print('h4',h4.get_shape())
         #tanh = tf.nn.tanh(h4)
-        self.sig = tf.nn.sigmoid(tf.nn.tanh(self.h4)*6)
         #relu = tf.nn.elu(h4)
         #result = tf.mul(tanh, 50000)
         #result = tanh
         #return tf.zeros_like(tensorflow_wav.scale_up(h4))
-        return self.sig
+        return tensorflow_wav.scale_up(self.h4)
 
 
     def sampler(self, y=None):
@@ -414,8 +421,7 @@ class DCGAN(object):
             #h4 = tf.reshape(h4,[self.batch_size, WAV_WIDTH*WAV_HEIGHT*DIMENSIONS])
             #tanh = tf.nn.tanh(h4)
             #h4_output = fully_connected(h4, WAV_WIDTH*WAV_HEIGHT*DIMENSIONS, 'fully_connected_g_h4')
-            sig = tf.nn.sigmoid(tf.nn.tanh(h4)*6)
-            return sig#tensorflow_wav.scale_up(h4)
+            return tensorflow_wav.scale_up(h4)#tensorflow_wav.scale_up(h4)
 
     def save(self, checkpoint_dir, step):
         model_name = "DCGAN.model"
