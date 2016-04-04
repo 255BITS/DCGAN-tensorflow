@@ -223,6 +223,7 @@ class DCGAN(object):
             #print(batch)
             idx=0
             batch_idxs=0
+            diverged_count = 0
             for wavobj in get_wav_content(batch_files):
                 print('shape is', wavobj['data'].shape)
                 wavdata = wavobj['data']
@@ -278,7 +279,7 @@ class DCGAN(object):
                     errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
                     errG = self.g_loss.eval({self.wavs: batch_wavs})
                     errVAE = self.vae_loss.eval({self.wavs: batch_wavs})
-                    #rG = self.G.eval({self.wavs: batch_wavs})
+                    rG = self.G.eval({self.wavs: batch_wavs})
                     #H4 = self.h4.eval({self.wavs: batch_wavs})
                     #bf = self.batch_flatten.eval({self.wavs: batch_wavs})
                     #brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
@@ -288,7 +289,7 @@ class DCGAN(object):
                     #print("z", np.min(z), np.max(z))
                     #print("bf", np.min(bf), np.max(bf))
                     #print("brf", np.min(brf), np.max(brf))
-                    #print("rG", np.min(rG), np.max(rG))
+                    print("rG", np.min(rG), np.max(rG))
 
                     counter += 1
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f vae_loss: %.8f" \
@@ -300,10 +301,18 @@ class DCGAN(object):
                     print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
                         print("Saving after next batch")
-                    if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-2:
-                        if(errD_fake == 0 or errD_fake > 23 or errG > 23):
-                            print("Refusing to save, error rate above threshold")
-                        else:
+                    if(errD_fake == 0 or errD_fake > 23 or errG > 23 or errVAE > 2 or np.isnan(errVAE)):
+                        diverged_count += 1
+                        print("Error rate above threshold")
+                        if(diverged_count > 20):
+                            print("Loading from last checkpoint")
+                            loaded = self.load(self.checkpoint_dir)
+                            diverged_count = 0
+                            print("loaded", loaded)
+
+                    else:
+                        diverged_count = 0
+                        if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-2:
                             print("Saving !")
                             self.save(config.checkpoint_dir, counter)
 
@@ -343,7 +352,7 @@ class DCGAN(object):
             lstm_layer = lstm.discriminator(lstm_input)
 
             #return lin#lstm_layer#
-            return tf.nn.sigmoid(lstm_layer*h4)
+            return tf.nn.sigmoid(h4)
 
     def generator(self, y=None):
         print("Generator creation")
@@ -381,7 +390,7 @@ class DCGAN(object):
         #print('h4',h4.get_shape())
         #tanh = tf.nn.tanh(h4)
         #relu = tf.nn.elu(h4)
-        #result = tf.mul(tanh, 50000)
+        #result = tf.mul(tanh, 0000)
         #result = tanh
         #return tf.zeros_like(tensorflow_wav.scale_up(h4))
         return tensorflow_wav.scale_up(self.h4)
