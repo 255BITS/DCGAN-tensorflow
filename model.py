@@ -296,7 +296,7 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG, errVAE))
 
-                    SAVE_COUNT=300
+                    SAVE_COUNT=config.save_every
                     
                     #print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
