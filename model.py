@@ -240,8 +240,8 @@ class DCGAN(object):
                 errG = 0
                 for i, batch_wavs in enumerate(batch_wavs_multiple):
                     idx+=1
-                    print("Min:", np.min(batch_wavs))
-                    print("Max:", np.max(batch_wavs))
+                    #print("Min:", np.min(batch_wavs))
+                    #print("Max:", np.max(batch_wavs))
 
                     _ = self.sess.run((vae_optim, self.vae_loss),
                             feed_dict={self.wavs: batch_wavs})
@@ -262,10 +262,10 @@ class DCGAN(object):
                     # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
                     #if(errG > 10):
                     #    errg_range = 4
-                    if(errG > 5):
-                        errg_range = 2
-                    else:
-                        errg_range=1
+                    #if(errG > 5):
+                    #    errg_range = 2
+                    #else:
+                    errg_range=1
                     for repeat in range(errg_range):
                         #print("generating ", errg_range)
                         # Update G network
@@ -287,16 +287,16 @@ class DCGAN(object):
                     #print("z", np.min(z), np.max(z))
                     #print("bf", np.min(bf), np.max(bf))
                     #print("brf", np.min(brf), np.max(brf))
-                    print("rG", np.min(rG), np.max(rG))
+                    #print("rG", np.min(rG), np.max(rG))
 
                     counter += 1
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f vae_loss: %.8f" \
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG, errVAE))
 
-                    SAVE_COUNT=20
+                    SAVE_COUNT=100
                     
-                    print("Batch ", counter)
+                    #print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
                         print("Saving after next batch")
                     if(errD_fake == 0 or errD_fake > 23 or errG > 23 or errVAE > 2 or np.isnan(errVAE)):
@@ -332,11 +332,11 @@ class DCGAN(object):
             print('wav', wav.get_shape())
             h0 = lrelu(conv2d(wav, self.df_dim, name='d_h0_conv'))
             print('h0', h0.get_shape())
-            h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
-            print('h1', h1.get_shape())
-            h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
-            print('h2', h2.get_shape())
-            h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+            #h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
+            #print('h1', h1.get_shape())
+            #h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
+            #print('h2', h2.get_shape())
+            h3 = lrelu(self.d_bn3(conv2d(h0, self.df_dim*2, name='d_h3_conv')))
             h3_reshape = tf.reshape(h3, [self.batch_size, -1])
             print('h3', h3.get_shape())
             h4 = linear(h3_reshape, 1, 'd_h3_lin')
@@ -345,41 +345,41 @@ class DCGAN(object):
             #sig = tf.nn.sigmoid(h4)
             #lin = linear(h4, 1, 'sig_linear')
             #lstm_lin = linear(h4, 4, 'lstm_linear')
-            #lstm_input = h3_reshape
-            #lstm_layer = lstm.discriminator(lstm_input)
+            lstm_input = h3_reshape
+            lstm_layer = lstm.discriminator(lstm_input)
 
             #return lin#lstm_layer#
-            return tf.nn.sigmoid(h4)#*lstm_layer)
+            return tf.nn.sigmoid(lstm_layer)
 
     def generator(self, y=None):
         print("Generator creation")
         z = self.z
         print('z', z.get_shape())
         # project `z` and reshape
-        self.z_, self.h0_w, self.h0_b = linear(z, self.gf_dim*8*4*4, 'g_h0_lin', with_w=True)
+        self.z_, self.h0_w, self.h0_b = linear(z, self.gf_dim*16*16*1, 'g_h0_lin', with_w=True)
         print('z_', z.get_shape())
         print('self.h0_w', self.h0_w.get_shape())
 
-        self.h0 = tf.reshape(self.z_, [self.batch_size, int(WAV_WIDTH/16), int(WAV_HEIGHT/16) , self.gf_dim * 8])
+        self.h0 = tf.reshape(lstm.generator(self.z_), [self.batch_size, 8,8 , self.gf_dim * 1])
         self.h0 = tf.nn.relu(self.g_bn0(self.h0))
         print('h0',self.h0.get_shape())
 
-        self.h1, self.h1_w, self.h1_b = deconv2d(self.h0, 
-                [self.batch_size, int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1', with_w=True)
-        h1 = tf.nn.relu(self.g_bn1(self.h1))
-        print('h1',h1.get_shape())
+        #self.h1, self.h1_w, self.h1_b = deconv2d(self.h0, 
+        #        [self.batch_size, int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1', with_w=True)
+        #h1 = tf.nn.relu(self.g_bn1(self.h1))
+        #print('h1',h1.get_shape())
 
-        h2, self.h2_w, self.h2_b = deconv2d(h1,
-                [self.batch_size, int(WAV_WIDTH/4), int(WAV_HEIGHT/4), self.gf_dim*2], name='g_h2', with_w=True)
+        h2, self.h2_w, self.h2_b = deconv2d(self.h0,
+                [self.batch_size, 32,32, self.gf_dim//2], name='g_h2', with_w=True)
         h2 = tf.nn.relu(self.g_bn2(h2))
         print('h2',h2.get_shape())
 
-        h3, self.h3_w, self.h3_b = deconv2d(h2,
-                [self.batch_size, int(WAV_WIDTH/2), int(WAV_HEIGHT/2), self.gf_dim], name='g_h3', with_w=True)
-        h3 = tf.nn.relu(self.g_bn3(h3))
-        print('h3',h3.get_shape())
+        #h3, self.h3_w, self.h3_b = deconv2d(h2,
+        #        [self.batch_size, int(WAV_WIDTH/2), int(WAV_HEIGHT/2), self.gf_dim], name='g_h3', with_w=True)
+        #h3 = tf.nn.relu(self.g_bn3(h3))
+        #print('h3',h3.get_shape())
 
-        self.h4= deconv2d(h3,
+        self.h4= deconv2d(h2,
                 [self.batch_size, WAV_WIDTH, WAV_HEIGHT, DIMENSIONS], name='g_h4', with_w=False, no_bias=False)
         #self.h4 = self.g_bn4(self.h4)
         #self.h4 = tf.reshape(self.h4,[self.batch_size, WAV_WIDTH*WAV_HEIGHT*DIMENSIONS])
@@ -400,23 +400,23 @@ class DCGAN(object):
             print("Sampler creation")
             z = self.z
             # project `z` and reshape
-            h0 = tf.reshape(self.z_, [self.batch_size, int(WAV_WIDTH/16), int(WAV_HEIGHT/16) , self.gf_dim * 8])
+            h0 = tf.reshape(lstm.generator(self.z_), [self.batch_size, 16, 16, self.gf_dim])
             h0 = tf.nn.relu(self.g_bn0(h0))
             print('h0',h0.get_shape())
 
-            h1 = deconv2d(h0, [self.batch_size,int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1')
-            h1 = tf.nn.relu(self.g_bn1(h1, train=False))
-            print('h1', h1.get_shape())
+           # h1 = deconv2d(h0, [self.batch_size,int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1')
+           # h1 = tf.nn.relu(self.g_bn1(h1, train=False))
+           # print('h1', h1.get_shape())
 
-            h2 = deconv2d(h1, [self.batch_size,int(WAV_WIDTH/4), int(WAV_HEIGHT/4), self.gf_dim*2], name='g_h2')
+            h2 = deconv2d(h0, [self.batch_size, 32, 32, self.gf_dim//2], name='g_h2')
             h2 = tf.nn.relu(self.g_bn2(h2, train=False))
             print('h2', h2.get_shape())
 
-            h3 = deconv2d(h2, [self.batch_size, int(WAV_WIDTH/2), int(WAV_HEIGHT/2), self.gf_dim], name='g_h3')
-            h3 = tf.nn.relu(self.g_bn3(h3, train=False))
-            print('h3', h3.get_shape())
+            #h3 = deconv2d(h2, [self.batch_size, int(WAV_WIDTH/2), int(WAV_HEIGHT/2), self.gf_dim], name='g_h3')
+            #h3 = tf.nn.relu(self.g_bn3(h3, train=False))
+            #print('h3', h3.get_shape())
 
-            h4 = deconv2d(h3, [self.batch_size, WAV_WIDTH, WAV_HEIGHT, DIMENSIONS], name='g_h4', no_bias=False)
+            h4 = deconv2d(h2, [self.batch_size, WAV_WIDTH, WAV_HEIGHT, DIMENSIONS], name='g_h4', no_bias=False)
 
             print('h4', h4.get_shape())
 

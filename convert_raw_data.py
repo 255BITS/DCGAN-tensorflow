@@ -7,6 +7,7 @@ import scipy.fftpack
 import argparse
 import mdct
 import pywt
+import sys
 
 
 parser = argparse.ArgumentParser(description='Converts data to mlaudio format.')
@@ -15,7 +16,7 @@ parser.add_argument('--insanity', action='store_true')
 
 args = parser.parse_args()
 print(args)
-BITRATE = 8192
+BITRATE = 32*1024
 
 def do(command):
     print("Running " + command)
@@ -65,7 +66,7 @@ def preprocess(output_file):
     #raw = raw[:int(raw.shape[0]/BITRATE)*BITRATE]
     #raw = np.reshape(raw, [-1, WAV_X])
     #mdct = [do_mdct(row) for row in raw]
-    length = -1#BITRATE*5
+    length = BITRATE*60*60*1 # 2 hour max for now
     if(len(wav['data'].shape) > 1):
         data = wav['data'][:length, 0]
         data_right = wav['data'][:length, 1]
@@ -113,12 +114,12 @@ def add_to_training(dir):
         silent_file = "training/silence_removed/"+fname
         output_file=  "training/"+fname
         do("ffmpeg -loglevel panic -y -i \""+file+"\" -ar "+str(BITRATE)+" \""+process_file+"\"")
-        do("ffmpeg -loglevel panic -y -i \""+process_file+"\" -ac 2 \""+silent_file+"\"")
-        do("sox \""+silent_file+"\" \""+output_file+"\" silence 1 0.1 0.1% reverse silence 1 0.1 0.1% reverse")
+        do("ffmpeg -loglevel panic -y -i \""+process_file+"\" -ac 2 \""+output_file+"\"")
+        #do("sox \""+silent_file+"\" \""+output_file+"\" silence 1 0.1 0.1% reverse silence 1 0.1 0.1% reverse")
         try:
             preprocess(output_file)
         except:
-            print("Oops that broke")
+            print("Error in preprocess", sys.exc_info()[0])
         #remove silence
         #do("ffmpeg -i \""+file+"-4k-1-chan.wav\" -af silenceremove=1:0:-30dB:-1:0:0 \""+file+"-4k-mono-silent.wav\"")
         #do("rm \""+file+"-4k-1-chan.wav\"")
@@ -134,7 +135,7 @@ def sanity_test(input_wav):
 def insanity_test(input_wav):
 
     wav = tensorflow_wav.get_wav(input_wav)
-    wavdata = wav['data']
+    wavdata = wav['data'][:44100*60*3]
 
     mode = 'db8'
     converted = pywt.wavedec(np.reshape(wavdata, [-1]), mode)
