@@ -136,15 +136,13 @@ def insanity_test(input_wav):
     wav = tensorflow_wav.get_wav(input_wav)
     wavdata = wav['data']
 
-    converted = pywt.wavedec(np.reshape(wavdata, [-1]), 'db1')
-    print(np.shape(converted), len(converted[24]), len(converted[23]))
+    mode = 'db8'
+    converted = pywt.wavedec(np.reshape(wavdata, [-1]), mode)
 
-    c_lv = 9617408
-    converted[24] = np.zeros(c_lv)
-    converted[23] = np.zeros(c_lv/2)
-    converted[22] = np.zeros(c_lv/4)
-    converted[21] = np.zeros(c_lv/8)
-    converted_data = pywt.waverec(converted, 'db1')
+    for i in range(16, len(converted)):
+        print(i, len(converted[i]))
+        converted[i] = np.zeros(len(converted[i]))
+    converted_data = pywt.waverec(converted, mode)
 
     wav['data'] = converted_data
     tensorflow_wav.save_wav(wav, "insanity.wav")
