@@ -326,10 +326,13 @@ class DCGAN(object):
     def discriminator(self, wav, reuse=False, y=None):
         if reuse:
             tf.get_variable_scope().reuse_variables()
-
-        lstm_input = tf.reshape(wav, [self.batch_size, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS])
-        lstm_layer = lstm.discriminator(lstm_input)
+        c2d = conv2d(wav, 16, name='d_h0_conv')
+        c2d = conv2d(c2d, 8, name='d_h1_conv')
+        c2d = self.d_bn2(c2d)
+        lstm_input = tf.reshape(c2d, [self.batch_size, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//4])
+        lstm_layer = lstm.discriminator(lstm_input,WAV_HEIGHT*WAV_WIDTH*DIMENSIONS )
         bn_input =  tf.reshape(lstm_layer, [self.batch_size, WAV_HEIGHT,WAV_WIDTH,DIMENSIONS])
+        #bn = bn_input
         bn = self.d_bn3(bn_input)
         return tf.nn.sigmoid(bn)
 
@@ -343,11 +346,21 @@ class DCGAN(object):
         print("Generator creation")
         z = self.z
         print('z', z.get_shape())
-        lstm_gen = lstm.generator(self.z, WAV_HEIGHT*WAV_HEIGHT*DIMENSIONS)
 
-        reshaped = tf.reshape(lstm_gen, [self.batch_size, WAV_WIDTH, WAV_HEIGHT, DIMENSIONS])
+        lstm_gen = lstm.generator(self.z, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//128)
+
+        reshaped = tf.reshape(lstm_gen, [self.batch_size, WAV_WIDTH//8, WAV_HEIGHT//8, DIMENSIONS//2])
+
         batch_lstm = self.g_bn0(reshaped)
-        return tensorflow_wav.scale_up(batch_lstm)
+        print("batch shape", batch_lstm.get_shape())
+        #c2d = conv2d(batch_lstm, 32, name='g_h0_conv')
+        c2d_reshape = deconv2d(batch_lstm, [self.batch_size, WAV_HEIGHT//4,WAV_WIDTH//4, DIMENSIONS], name='g_h0_conv')
+        c2d_reshape2 = deconv2d(c2d_reshape, [self.batch_size, WAV_HEIGHT//2,WAV_WIDTH//2, DIMENSIONS], name='g_h1_conv')
+        c2d_reshape3 = deconv2d(c2d_reshape2, [self.batch_size, WAV_HEIGHT//1,WAV_WIDTH//1, DIMENSIONS], name='g_h2_conv')
+        #c2d_reshape = tf.reshape(c2d, [self.batch_size, WAV_HEIGHT,WAV_WIDTH, DIMENSIONS])
+        #output = self.g_bn1(c2d_reshape3)
+        output = c2d_reshape3
+        return tensorflow_wav.scale_up(output)
 
 
     def sampler(self, y=None):

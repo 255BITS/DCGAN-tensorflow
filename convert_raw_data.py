@@ -7,7 +7,6 @@ import scipy.fftpack
 import argparse
 import mdct
 import pywt
-import sys
 
 
 parser = argparse.ArgumentParser(description='Converts data to mlaudio format.')
@@ -16,7 +15,7 @@ parser.add_argument('--insanity', action='store_true')
 
 args = parser.parse_args()
 print(args)
-BITRATE = 32*1024
+BITRATE = 8192
 
 def do(command):
     print("Running " + command)
@@ -66,7 +65,7 @@ def preprocess(output_file):
     #raw = raw[:int(raw.shape[0]/BITRATE)*BITRATE]
     #raw = np.reshape(raw, [-1, WAV_X])
     #mdct = [do_mdct(row) for row in raw]
-    length = BITRATE*60*60*1 # 2 hour max for now
+    length = -1#BITRATE*5
     if(len(wav['data'].shape) > 1):
         data = wav['data'][:length, 0]
         data_right = wav['data'][:length, 1]
@@ -114,12 +113,12 @@ def add_to_training(dir):
         silent_file = "training/silence_removed/"+fname
         output_file=  "training/"+fname
         do("ffmpeg -loglevel panic -y -i \""+file+"\" -ar "+str(BITRATE)+" \""+process_file+"\"")
-        do("ffmpeg -loglevel panic -y -i \""+process_file+"\" -ac 2 \""+output_file+"\"")
-        #do("sox \""+silent_file+"\" \""+output_file+"\" silence 1 0.1 0.1% reverse silence 1 0.1 0.1% reverse")
+        do("ffmpeg -loglevel panic -y -i \""+process_file+"\" -ac 2 \""+silent_file+"\"")
+        do("sox \""+silent_file+"\" \""+output_file+"\" silence 1 0.1 0.1% reverse silence 1 0.1 0.1% reverse")
         try:
             preprocess(output_file)
         except:
-            print("Error in preprocess", sys.exc_info()[0])
+            print("Oops that broke")
         #remove silence
         #do("ffmpeg -i \""+file+"-4k-1-chan.wav\" -af silenceremove=1:0:-30dB:-1:0:0 \""+file+"-4k-mono-silent.wav\"")
         #do("rm \""+file+"-4k-1-chan.wav\"")
@@ -135,14 +134,17 @@ def sanity_test(input_wav):
 def insanity_test(input_wav):
 
     wav = tensorflow_wav.get_wav(input_wav)
-    wavdata = wav['data'][:44100*60*3]
+    wavdata = wav['data'][:8192*8*4]
 
-    mode = 'db8'
+    mode = 'db1'
     converted = pywt.wavedec(np.reshape(wavdata, [-1]), mode)
 
-    for i in range(16, len(converted)):
-        print(i, len(converted[i]))
-        converted[i] = np.zeros(len(converted[i]))
+    sum=0
+    for i in range(0, len(converted)):
+        sum+=len(converted[i])
+        print(i, len(converted[i]), sum)
+        if( i > 9 ):
+            converted[i] = np.zeros(len(converted[i]))
     converted_data = pywt.waverec(converted, mode)
 
     wav['data'] = converted_data
@@ -160,8 +162,8 @@ else:
     #add_to_training("datasets/youtube-drums-2)
     #add_to_training("datasets/youtube-drums-3")
     #add_to_training('datasets/drums2')
-    #add_to_training('datasets/youtube-drums-120bpm-1')
-    add_to_training('datasets/videogame')
+    add_to_training('datasets/youtube-drums-120bpm-1')
+    #add_to_training('datasets/videogame')
 
     #add_to_training("datasets/youtube-drums-120bpm-1")
     #add_to_training("youtube/5")

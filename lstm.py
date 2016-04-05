@@ -1,12 +1,11 @@
 import tensorflow as tf
 from tensorflow.models.rnn import rnn_cell, seq2seq
 from ops import linear
-def discriminator(input):
+def discriminator(input, vocab_size):
     with tf.variable_scope("lstm_discriminator"):
         cell_input = [input]
         zeros = [tf.zeros_like(input)]
-        vocab_size = int(input.get_shape()[1])
-        memory = 256
+        memory = 32
         cell = rnn_cell.BasicLSTMCell(memory)
         stacked_cell = rnn_cell.MultiRNNCell([cell]*2)
         logits, state = seq2seq.basic_rnn_seq2seq(cell_input, zeros, stacked_cell)
