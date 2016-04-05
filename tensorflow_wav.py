@@ -50,6 +50,7 @@ def convert_mlaudio_to_wav(mlaudio):
     data_right = do_idwt(audio_right)
 
     # combine left and right streams, wav uses [-1, channels] as the output format
+    print("data is", np.shape(data))
     data = np.reshape(data, [-1, 1])
     data_right = np.reshape(data_right, [-1, 1])
     print(data.shape)

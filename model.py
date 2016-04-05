@@ -294,7 +294,7 @@ class DCGAN(object):
                         % (epoch, idx, batch_idxs,
                             time.time() - start_time, errD_fake, errD_real, errG, errVAE))
 
-                    SAVE_COUNT=100
+                    SAVE_COUNT=300
                     
                     #print("Batch ", counter)
                     if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
@@ -360,7 +360,7 @@ class DCGAN(object):
         print('z_', z.get_shape())
         print('self.h0_w', self.h0_w.get_shape())
 
-        self.h0 = tf.reshape(lstm.generator(self.z_), [self.batch_size, 8,8 , self.gf_dim * 1])
+        self.h0 = tf.reshape(lstm.generator(self.z_), [self.batch_size, 16,16 , self.gf_dim * 1])
         self.h0 = tf.nn.relu(self.g_bn0(self.h0))
         print('h0',self.h0.get_shape())
 

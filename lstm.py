@@ -54,9 +54,9 @@ def generator(input):
         w = tf.get_variable('g_softmax_w', [memory, vocab_size], dtype=tf.float32, initializer=tf.truncated_normal_initializer(0, 0.1))
         b = tf.get_variable('g_softmax_b', [vocab_size], dtype=tf.float32, initializer=tf.constant_initializer(0))
         wx_b = tf.nn.xw_plus_b(logits_, w, b)
-        softmax = tf.square(tf.nn.softmax(wx_b))
-        print('wx_b', wx_b, softmax)
-        return softmax
+        #softmax = tf.square(tf.nn.softmax(wx_b))
+        #print('wx_b', wx_b, softmax)
+        return wx_b#softmax
         #is_repeat = tf.reduce_max(tf.square(tf.nn.softmax(wx_b)), 1)
         #print("Output shape is", output, state)
 

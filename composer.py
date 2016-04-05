@@ -8,13 +8,13 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="strided"
+dataset="full_size_lstm_gen_32k"
 wav_size=64
 is_crop=False
-batch_size=4
+batch_size=128
 checkpoint_dir="checkpoint"
 bitrate=4096*2
-song_seconds=1
+song_seconds=5
 song_step=1.0
 z_dim=64
 
