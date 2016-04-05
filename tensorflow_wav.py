@@ -33,11 +33,11 @@ def do_istft(X, overlap=4):
 
 def do_idwt(rows):
     def idwt(elems):
-        es = np.reshape(elems, [2, 128])
+        es = np.reshape(elems, [2, 64*32])
         main = es[0]
         detail = es[1]
         return pywt.idwt(main, detail, 'db1')
-    results = [idwt(rows[i:i+4][:]) for i in range(0, len(rows), 4)]
+    results = [idwt(rows[i][:]) for i in range(0, len(rows), 1)]
     return results
 
 def convert_mlaudio_to_wav(mlaudio):

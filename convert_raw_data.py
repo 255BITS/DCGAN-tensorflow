@@ -44,7 +44,7 @@ def do_fft(raw):
 #where size is the length of the raw pcm data to encode(usually divisible into the bitrate)
 # the first 2 64 entries in the dimension are the main wavelet, followed by 2 64 detail wavelets
 #and N is the length of the data
-def do_dwt(data, size=256):
+def do_dwt(data, size=4096):
     rows = data.reshape([-1, size])
     def breakdown(row):
         result = pywt.dwt(row, 'db1')
@@ -83,11 +83,11 @@ def preprocess(output_file):
     #dct = [do_dct(row) for row in raw]
     #fft = np.swapaxes(fft, 0, 1)
 
-    dwt = np.reshape(dwt, [1, -1, 64])
-    dwt_right = np.reshape(dwt_right, [1, -1, 64])
+    dwt = np.reshape(dwt, [1, -1, 4096])
+    dwt_right = np.reshape(dwt_right, [1, -1, 4096])
     data = np.concatenate([dwt, dwt_right], 0)#, [dct]])
-    # the data is now in the form [2, -1, 64]
-    #carefully change the format to [-1, 64, 2]
+    # the data is now in the form [2, -1, 4096]
+    #carefully change the format to [-1, 4096, 2]
     data = np.swapaxes(np.swapaxes(data, 0, 1), 1, 2)
     wav['data']=data
     print("Data is of the form", np.shape(data))

@@ -330,7 +330,7 @@ class DCGAN(object):
         if not self.y_dim:
             print("Discriminator creation")
             print('wav', wav.get_shape())
-            h0 = lrelu(conv2d(wav, self.df_dim, name='d_h0_conv', k_h=4, k_w=4, padding='VALID'))
+            h0 = lrelu(conv2d(wav, self.df_dim, name='d_h0_conv'))
             print('h0', h0.get_shape())
             h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
             print('h1', h1.get_shape())

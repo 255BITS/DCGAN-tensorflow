@@ -59,7 +59,8 @@ with tf.Session() as sess:
       full_audio = batch_wavs
 
 
-      samplewav['data']=np.reshape(full_audio,[-1, 64, DIMENSIONS])
+      print('shape is', np.shape(full_audio))
+      samplewav['data']=np.reshape(full_audio,[-1, 4096, DIMENSIONS])
       converted = tensorflow_wav.convert_mlaudio_to_wav(samplewav)
 
       print('converted', np.shape(converted['data']), np.min(batch_wavs), np.max(batch_wavs))
