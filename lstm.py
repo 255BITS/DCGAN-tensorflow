@@ -24,18 +24,18 @@ def discriminator(input):
         b = tf.get_variable('d_softmax_b', [vocab_size], dtype=tf.float32, initializer=tf.constant_initializer(0))
         wx_b = tf.nn.xw_plus_b(logits_, w, b)
         print('wx_b', wx_b)
-        return 6-tf.nn.relu(wx_b)
+        return tf.nn.relu(wx_b)-6
         #is_repeat = tf.reduce_max(tf.square(tf.nn.softmax(wx_b)), 1)
         #print("Output shape is", output, state)
 
         # block repeats
         #return (1-is_repeat)
 
-def generator(input):
+def generator(input, output_size):
     with tf.variable_scope("lstm_generator"):
         cell_input = [input]
         zeros = [tf.zeros_like(input)]
-        vocab_size = int(input.get_shape()[1])
+        vocab_size = output_size
         memory = 256
         print('input',input)
         cell = rnn_cell.BasicLSTMCell(memory)

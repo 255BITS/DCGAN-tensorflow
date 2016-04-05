@@ -327,103 +327,31 @@ class DCGAN(object):
         if reuse:
             tf.get_variable_scope().reuse_variables()
 
-        if not self.y_dim:
-            print("Discriminator creation")
-            print('wav', wav.get_shape())
-            h0 = lrelu(conv2d(wav, self.df_dim, name='d_h0_conv'))
-            print('h0', h0.get_shape())
-            #h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
-            #print('h1', h1.get_shape())
-            #h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
-            #print('h2', h2.get_shape())
-            h3 = lrelu(self.d_bn3(conv2d(h0, self.df_dim*2, name='d_h3_conv')))
-            h3_reshape = tf.reshape(h3, [self.batch_size, -1])
-            print('h3', h3.get_shape())
-            h4 = linear(h3_reshape, 1, 'd_h3_lin')
-            print('h4', h4.get_shape())
-            print("End discriminator creation")
-            #sig = tf.nn.sigmoid(h4)
-            #lin = linear(h4, 1, 'sig_linear')
-            #lstm_lin = linear(h4, 4, 'lstm_linear')
-            lstm_input = h3_reshape
-            lstm_layer = lstm.discriminator(lstm_input)
-
-            #return lin#lstm_layer#
-            return tf.nn.sigmoid(lstm_layer)
+        lstm_input = tf.reshape(wav, [self.batch_size, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS])
+        lstm_layer = lstm.discriminator(lstm_input)
+        bn_input =  tf.reshape(lstm_layer, [self.batch_size, WAV_HEIGHT,WAV_WIDTH,DIMENSIONS])
+        bn = self.d_bn3(bn_input)
+        return tf.nn.sigmoid(bn)
 
     def generator(self, y=None):
+        return self.build_generator(True)
+    
+    def build_generator(self,is_generator):
+        if(not is_generator):
+            tf.get_variable_scope().reuse_variables()
+
         print("Generator creation")
         z = self.z
         print('z', z.get_shape())
-        # project `z` and reshape
-        self.z_, self.h0_w, self.h0_b = linear(z, self.gf_dim*16*16*1, 'g_h0_lin', with_w=True)
-        print('z_', z.get_shape())
-        print('self.h0_w', self.h0_w.get_shape())
+        lstm_gen = lstm.generator(self.z, WAV_HEIGHT*WAV_HEIGHT*DIMENSIONS)
 
-        self.h0 = tf.reshape(lstm.generator(self.z_), [self.batch_size, 16,16 , self.gf_dim * 1])
-        self.h0 = tf.nn.relu(self.g_bn0(self.h0))
-        print('h0',self.h0.get_shape())
-
-        #self.h1, self.h1_w, self.h1_b = deconv2d(self.h0, 
-        #        [self.batch_size, int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1', with_w=True)
-        #h1 = tf.nn.relu(self.g_bn1(self.h1))
-        #print('h1',h1.get_shape())
-
-        h2, self.h2_w, self.h2_b = deconv2d(self.h0,
-                [self.batch_size, 32,32, self.gf_dim//2], name='g_h2', with_w=True)
-        h2 = tf.nn.relu(self.g_bn2(h2))
-        print('h2',h2.get_shape())
-
-        #h3, self.h3_w, self.h3_b = deconv2d(h2,
-        #        [self.batch_size, int(WAV_WIDTH/2), int(WAV_HEIGHT/2), self.gf_dim], name='g_h3', with_w=True)
-        #h3 = tf.nn.relu(self.g_bn3(h3))
-        #print('h3',h3.get_shape())
-
-        self.h4= deconv2d(h2,
-                [self.batch_size, WAV_WIDTH, WAV_HEIGHT, DIMENSIONS], name='g_h4', with_w=False, no_bias=False)
-        #self.h4 = self.g_bn4(self.h4)
-        #self.h4 = tf.reshape(self.h4,[self.batch_size, WAV_WIDTH*WAV_HEIGHT*DIMENSIONS])
-        #self.h4_output = fully_connected(self.h4, WAV_WIDTH*WAV_HEIGHT*DIMENSIONS, 'fully_connected_g_h4')
-        #print('h4',h4.get_shape())
-        #tanh = tf.nn.tanh(h4)
-        #relu = tf.nn.elu(h4)
-        #result = tf.mul(tanh, 0000)
-        #result = tanh
-        #return tf.zeros_like(tensorflow_wav.scale_up(h4))
-        return tensorflow_wav.scale_up(self.h4)
+        reshaped = tf.reshape(lstm_gen, [self.batch_size, WAV_WIDTH, WAV_HEIGHT, DIMENSIONS])
+        batch_lstm = self.g_bn0(reshaped)
+        return tensorflow_wav.scale_up(batch_lstm)
 
 
     def sampler(self, y=None):
-        tf.get_variable_scope().reuse_variables()
-
-        if not self.y_dim:
-            print("Sampler creation")
-            z = self.z
-            # project `z` and reshape
-            h0 = tf.reshape(lstm.generator(self.z_), [self.batch_size, 16, 16, self.gf_dim])
-            h0 = tf.nn.relu(self.g_bn0(h0))
-            print('h0',h0.get_shape())
-
-           # h1 = deconv2d(h0, [self.batch_size,int(WAV_WIDTH/8), int(WAV_HEIGHT/8), self.gf_dim*4], name='g_h1')
-           # h1 = tf.nn.relu(self.g_bn1(h1, train=False))
-           # print('h1', h1.get_shape())
-
-            h2 = deconv2d(h0, [self.batch_size, 32, 32, self.gf_dim//2], name='g_h2')
-            h2 = tf.nn.relu(self.g_bn2(h2, train=False))
-            print('h2', h2.get_shape())
-
-            #h3 = deconv2d(h2, [self.batch_size, int(WAV_WIDTH/2), int(WAV_HEIGHT/2), self.gf_dim], name='g_h3')
-            #h3 = tf.nn.relu(self.g_bn3(h3, train=False))
-            #print('h3', h3.get_shape())
-
-            h4 = deconv2d(h2, [self.batch_size, WAV_WIDTH, WAV_HEIGHT, DIMENSIONS], name='g_h4', no_bias=False)
-
-            print('h4', h4.get_shape())
-
-            #h4 = tf.reshape(h4,[self.batch_size, WAV_WIDTH*WAV_HEIGHT*DIMENSIONS])
-            #tanh = tf.nn.tanh(h4)
-            #h4_output = fully_connected(h4, WAV_WIDTH*WAV_HEIGHT*DIMENSIONS, 'fully_connected_g_h4')
-            return tensorflow_wav.scale_up(h4)#tensorflow_wav.scale_up(h4)
+        return self.build_generator(False)
 
     def save(self, checkpoint_dir, step):
         model_name = "DCGAN.model"
