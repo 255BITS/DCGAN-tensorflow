@@ -6,7 +6,7 @@ def discriminator(input):
         cell_input = [input]
         zeros = [tf.zeros_like(input)]
         vocab_size = int(input.get_shape()[1])
-        memory = 64
+        memory = 512
         cell = rnn_cell.BasicLSTMCell(memory)
         stacked_cell = rnn_cell.MultiRNNCell([cell]*2)
         logits, state = seq2seq.basic_rnn_seq2seq(cell_input, zeros, stacked_cell)
