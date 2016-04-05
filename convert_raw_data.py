@@ -11,6 +11,7 @@ import pywt
 
 parser = argparse.ArgumentParser(description='Converts data to mlaudio format.')
 parser.add_argument('--sanity', action='store_true')
+parser.add_argument('--insanity', action='store_true')
 
 args = parser.parse_args()
 print(args)
@@ -130,8 +131,29 @@ def sanity_test(input_wav):
     outfile = input_wav+".sanity.wav"
     tensorflow_wav.save_wav(out, outfile)
 
+def insanity_test(input_wav):
+
+    wav = tensorflow_wav.get_wav(input_wav)
+    wavdata = wav['data']
+
+    converted = pywt.wavedec(np.reshape(wavdata, [-1]), 'db1')
+    print(np.shape(converted), len(converted[24]), len(converted[23]))
+
+    c_lv = 9617408
+    converted[24] = np.zeros(c_lv)
+    converted[23] = np.zeros(c_lv/2)
+    converted[22] = np.zeros(c_lv/4)
+    converted[21] = np.zeros(c_lv/8)
+    converted_data = pywt.waverec(converted, 'db1')
+
+    wav['data'] = converted_data
+    tensorflow_wav.save_wav(wav, "insanity.wav")
+
+
 if(args.sanity):
     sanity_test("input.wav")
+if(args.insanity):
+    insanity_test("input.wav")
 else:
     do("rm training/*.wav")
     do("rm training/*.mlaudio")

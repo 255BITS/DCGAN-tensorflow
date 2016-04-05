@@ -345,11 +345,11 @@ class DCGAN(object):
             #sig = tf.nn.sigmoid(h4)
             #lin = linear(h4, 1, 'sig_linear')
             #lstm_lin = linear(h4, 4, 'lstm_linear')
-            lstm_input = h3_reshape
-            lstm_layer = lstm.discriminator(lstm_input)
+            #lstm_input = h3_reshape
+            #lstm_layer = lstm.discriminator(lstm_input)
 
             #return lin#lstm_layer#
-            return tf.nn.sigmoid(h4*lstm_layer)
+            return tf.nn.sigmoid(h4)#*lstm_layer)
 
     def generator(self, y=None):
         print("Generator creation")
