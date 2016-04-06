@@ -15,7 +15,7 @@ parser.add_argument('--insanity', action='store_true')
 
 args = parser.parse_args()
 print(args)
-BITRATE = 8192
+BITRATE = 4096*2
 
 def do(command):
     print("Running " + command)
@@ -84,8 +84,8 @@ def preprocess(output_file):
     #dct = [do_dct(row) for row in raw]
     #fft = np.swapaxes(fft, 0, 1)
 
-    dwt = np.reshape(dwt, [1, -1, 4096])
-    dwt_right = np.reshape(dwt_right, [1, -1, 4096])
+    dwt = np.reshape(dwt, [1, -1, BITRATE])
+    dwt_right = np.reshape(dwt_right, [1, -1, BITRATE])
     data = np.concatenate([dwt, dwt_right], 0)#, [dct]])
     # the data is now in the form [2, -1, 4096]
     #carefully change the format to [-1, 4096, 2]
@@ -134,7 +134,7 @@ def sanity_test(input_wav):
 def insanity_test(input_wav):
 
     wav = tensorflow_wav.get_wav(input_wav)
-    wavdata = wav['data'][:8192*8*4]
+    wavdata = wav['data'][:8192*4]
 
     mode = 'db1'
     converted = pywt.wavedec(np.reshape(wavdata, [-1]), mode)
@@ -143,7 +143,7 @@ def insanity_test(input_wav):
     for i in range(0, len(converted)):
         sum+=len(converted[i])
         print(i, len(converted[i]), sum)
-        if( i > 9 ):
+        if( i > 14 ):
             converted[i] = np.zeros(len(converted[i]))
     converted_data = pywt.waverec(converted, mode)
 
@@ -162,9 +162,9 @@ else:
     #add_to_training("datasets/youtube-drums-2)
     #add_to_training("datasets/youtube-drums-3")
     #add_to_training('datasets/drums2')
-    add_to_training('datasets/youtube-drums-120bpm-1')
+    #add_to_training('datasets/youtube-guitar')
     #add_to_training('datasets/videogame')
 
-    #add_to_training("datasets/youtube-drums-120bpm-1")
+    add_to_training("datasets/youtube-drums-120bpm-1")
     #add_to_training("youtube/5")
     #add_to_training("youtube/1")

@@ -7,9 +7,9 @@ from utils import pp, visualize, to_json
 
 flags = tf.app.flags
 flags.DEFINE_integer("epoch", 25, "Epoch to train [25]")
-flags.DEFINE_float("learning_rate_g", 0.001, "Learning rate of for adam [0.0002]")
-flags.DEFINE_float("learning_rate_v", 0.001, "Learning rate of for adam [0.0002]")
-flags.DEFINE_float("learning_rate_d", 0.001, "Learning rate of for adam [0.0002]")
+flags.DEFINE_float("learning_rate_g", 0.0005, "Learning rate of for adam [0.0002]")
+flags.DEFINE_float("learning_rate_v", 0.0005, "Learning rate of for adam [0.0002]")
+flags.DEFINE_float("learning_rate_d", 0.0005, "Learning rate of for adam [0.0002]")
 flags.DEFINE_float("save_every", 300, "How often to save")
 flags.DEFINE_float("beta1", 0.5, "Momentum term of adam [0.5]")
 flags.DEFINE_integer("train_size", np.inf, "The size of train wavs [np.inf]")

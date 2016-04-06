@@ -8,10 +8,10 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="full_size_lstm_gen_32k"
-wav_size=64
+dataset="lstm-gem-defaults-23"
+wav_size=128
 is_crop=False
-batch_size=128
+batch_size=64
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 song_seconds=5

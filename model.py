@@ -8,8 +8,8 @@ from utils import *
 import tensorflow_wav
 import lstm
 
-WAV_HEIGHT=64
-WAV_WIDTH=64
+WAV_HEIGHT=64*2
+WAV_WIDTH=64*2
 DIMENSIONS=2
 
 class DCGAN(object):
@@ -348,22 +348,23 @@ class DCGAN(object):
 
         print("Generator creation")
         z = self.z
+        scale = 8.0
         print('z', z.get_shape())
 
         lstm_gen = lstm.generator(self.z, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//128)
 
-        #lstm_gen = fully_connected(z, WAV_HEIGHT*WAV_WIDTH//64, scope="g_fc_0")
+        #lstm_gen = fully_connected(z*scale, WAV_HEIGHT*WAV_WIDTH//64, scope="g_fc_0")
         reshaped = tf.reshape(lstm_gen, [self.batch_size, WAV_WIDTH//8, WAV_HEIGHT//8, DIMENSIONS//2])
 
         batch_lstm = self.g_bn0(reshaped)
         print("batch shape", batch_lstm.get_shape())
         #c2d = conv2d(batch_lstm, 32, name='g_h0_conv')
         c2d_reshape = deconv2d(batch_lstm, [self.batch_size, WAV_HEIGHT//4,WAV_WIDTH//4, DIMENSIONS], name='g_h0_conv')
-        c2d_reshape = lrelu(c2d_reshape)
+        c2d_reshape = lrelu(c2d_reshape, leak=0.4)
         c2d_reshape2 = deconv2d(c2d_reshape, [self.batch_size, WAV_HEIGHT//2,WAV_WIDTH//2, DIMENSIONS], name='g_h1_conv')
-        c2d_reshape2 = lrelu(c2d_reshape2)
+        c2d_reshape2 = lrelu(c2d_reshape2, leak=0.4)
         c2d_reshape3 = deconv2d(c2d_reshape2, [self.batch_size, WAV_HEIGHT//1,WAV_WIDTH//1, DIMENSIONS], name='g_h2_conv')
-        c2d_reshape3 = lrelu(c2d_reshape3)
+        c2d_reshape3 = lrelu(c2d_reshape3, leak=0.2)
 
         fc = fully_connected(tf.reshape(c2d_reshape, [self.batch_size, WAV_HEIGHT*WAV_WIDTH//8]), WAV_HEIGHT*WAV_HEIGHT*DIMENSIONS, scope='g_fc')
         fp = tf.reshape(fc,  [self.batch_size, WAV_HEIGHT,WAV_WIDTH, DIMENSIONS])
