@@ -328,8 +328,8 @@ class DCGAN(object):
     def discriminator(self, wav, reuse=False, y=None):
         if reuse:
             tf.get_variable_scope().reuse_variables()
-        c2d = conv2d(wav, 64, name='d_h0_conv')
-        c2d = conv2d(c2d, 8, name='d_h1_conv')
+        c2d = tf.nn.relu(conv2d(wav, 64, name='d_h0_conv'))
+        c2d = tf.nn.relu(conv2d(c2d, 8, name='d_h1_conv'))
         #c2d = self.d_bn2(c2d)
         lstm_input = tf.reshape(tf.nn.tanh(c2d), [self.batch_size, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//4])
         lstm_layer = lstm.discriminator(lstm_input,WAV_HEIGHT*WAV_WIDTH*DIMENSIONS )
