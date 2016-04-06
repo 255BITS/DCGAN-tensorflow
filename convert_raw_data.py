@@ -1,5 +1,6 @@
 import glob
 import os
+import sys
 import tensorflow_wav
 import numpy as np
 import scipy.signal
@@ -73,27 +74,15 @@ def preprocess(output_file):
         raise("MONO NOT SUPPORTED")
         data = wav['data'][:length]
         data_right = wav['data'][:length]
-    
-    data = resize_multiple(data, BITRATE)
-    data_right = resize_multiple(data, BITRATE)
-    #stft = do_stft(data)
-    #stft_right = do_stft(data_right)
-    dwt = do_dwt(data)
-    dwt_right = do_dwt(data_right)
-    #dct = np.zeros_like(mdct)
-    #dct = [do_dct(row) for row in raw]
-    #fft = np.swapaxes(fft, 0, 1)
 
-    dwt = np.reshape(dwt, [1, -1, 4096])
-    dwt_right = np.reshape(dwt_right, [1, -1, 4096])
-    data = np.concatenate([dwt, dwt_right], 0)#, [dct]])
-    # the data is now in the form [2, -1, 4096]
-    #carefully change the format to [-1, 4096, 2]
-    data = np.swapaxes(np.swapaxes(data, 0, 1), 1, 2)
-    wav['data']=data
-    print("Data is of the form", np.shape(data))
+    mode = 'db1'
+    wavdec  = pywt.wavedec(data, mode)
+    wavdec_right  = pywt.wavedec(data_right, mode)
+
+    wav['wavdec']=  [wavdec, wavdec_right]
+    print("Data is of the form", np.shape(wav['wavdec']))
     tensorflow_wav.save_pre(wav, output_file+".mlaudio")
-    audio = wav['data']
+    #audio = wav['data']
 
 
 def add_to_training(dir):
@@ -115,10 +104,10 @@ def add_to_training(dir):
         do("ffmpeg -loglevel panic -y -i \""+file+"\" -ar "+str(BITRATE)+" \""+process_file+"\"")
         do("ffmpeg -loglevel panic -y -i \""+process_file+"\" -ac 2 \""+silent_file+"\"")
         do("sox \""+silent_file+"\" \""+output_file+"\" silence 1 0.1 0.1% reverse silence 1 0.1 0.1% reverse")
-        try:
-            preprocess(output_file)
-        except:
-            print("Oops that broke")
+        #try:
+        preprocess(output_file)
+        #except:
+        #    print("Oops that broke",  sys.exc_info()[0])
         #remove silence
         #do("ffmpeg -i \""+file+"-4k-1-chan.wav\" -af silenceremove=1:0:-30dB:-1:0:0 \""+file+"-4k-mono-silent.wav\"")
         #do("rm \""+file+"-4k-1-chan.wav\"")
@@ -153,7 +142,7 @@ def insanity_test(input_wav):
 
 if(args.sanity):
     sanity_test("input.wav")
-if(args.insanity):
+elif(args.insanity):
     insanity_test("input.wav")
 else:
     do("rm training/*.wav")
