@@ -1,5 +1,6 @@
 import numpy as np
 import convert_raw_data
+import math
 import tensorflow_wav
 def leaf(t, data):
     jump = 2 # todo, different on different db modes 
@@ -46,7 +47,7 @@ def tree_from_dense(dense):
         length = len(layer)
         layer = np.array(layer)
         print("length is ", length, max, n)
-        layers.append(layer[0::length//max].tolist())
+        layers.append(layer[0::math.ceil(length/max)].tolist())
     return layers
 def reconstruct_tree(leaves, tree=[]):
     tree_total = []

@@ -217,8 +217,8 @@ class DCGAN(object):
                     batch[0::2]=data_left
                     batch[1::2]=data_right
                     print("LEN IS", len(batch))
-                    for i in range(0, len(batch), batch_size):
-                        yield batch[i*batch_size:(i+1)*batch_size]
+                    for i in range(0, len(batch)-batch_size, batch_size):
+                        yield batch[i:i+batch_size]
                     #except Exception as e:
                     #    print("Could not load ", filee, e)
 
@@ -227,6 +227,7 @@ class DCGAN(object):
             batch_idxs=0
             diverged_count = 0
             for wavobj in get_wav_content(batch_files, self.batch_size):
+                print("WAV SHAPE", np.shape(wavobj))
                 batch_wavs = wavobj
                 batch_idxs+=1
                 errD_fake = 0

@@ -5,11 +5,12 @@ import tensorflow as tf
 from glob import glob
 from model import DCGAN
 from utils import pp, visualize, to_json
+import hwav
 import tensorflow_wav
 
 
-dataset="lstm-wavelet-1"
-batch_size=16
+dataset="lstm-wavelet-2"
+batch_size=256
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 z_dim=64
@@ -46,6 +47,10 @@ with tf.Session() as sess:
         if(i % 1000 == 0):
             print(i)
         i+=1
+      print("tree, tr", np.shape(leaves), np.shape(leaves_right), COUNT*batch_size//2, LENGTH)
+      leaves = np.reshape(leaves, [COUNT*batch_size//2, LENGTH])
+      leaves_right = np.reshape(leaves_right, [COUNT*batch_size//2, LENGTH])
+      print("tree, tr", np.shape(leaves), np.shape(leaves_right))
       tree = hwav.reconstruct_tree(leaves)
       tree_right = hwav.reconstruct_tree(leaves_right)
       samplewav['wavdec']=[tree, tree_right]
