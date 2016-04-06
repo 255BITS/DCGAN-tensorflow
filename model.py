@@ -282,12 +282,14 @@ class DCGAN(object):
                     #bf = self.batch_flatten.eval({self.wavs: batch_wavs})
                     #brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
                     #z = self.z.eval({self.wavs: batch_wavs})
+                    gen_output = self.gen_output.eval({self.wavs: batch_wavs})
 
                     #print("H4", np.min(H4), np.max(H4))
                     #print("z", np.min(z), np.max(z))
                     #print("bf", np.min(bf), np.max(bf))
                     #print("brf", np.min(brf), np.max(brf))
-                    #print("rG", np.min(rG), np.max(rG))
+                    print("rG", np.min(rG), np.max(rG))
+                    print("gen_out", np.min(gen_output), np.max(gen_output))
 
                     counter += 1
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f vae_loss: %.8f" \
@@ -359,7 +361,7 @@ class DCGAN(object):
         c2d_reshape3 = deconv2d(c2d_reshape2, [self.batch_size, WAV_HEIGHT//1,WAV_WIDTH//1, DIMENSIONS], name='g_h2_conv')
         #c2d_reshape = tf.reshape(c2d, [self.batch_size, WAV_HEIGHT,WAV_WIDTH, DIMENSIONS])
         #output = self.g_bn1(c2d_reshape3)
-        output = c2d_reshape3
+        self.gen_output = output = c2d_reshape3
         return tensorflow_wav.scale_up(output)
 
 

@@ -70,12 +70,12 @@ def conv2d(input_, output_dim,
         return conv
 
 def deconv2d(input_, output_shape,
-             k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, biasstart=0.5,
+             k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.3, biasstart=0.0,
              name="deconv2d", with_w=False, no_bias=False):
     with tf.variable_scope(name):
         # filter : [height, width, output_channels, in_channels]
         w = tf.get_variable('w', [k_h, k_h, output_shape[-1], input_.get_shape()[-1]],
-                            initializer=tf.random_normal_initializer(stddev=stddev))
+                            initializer=tf.truncated_normal_initializer(stddev=stddev))
         
         try:
             deconv = tf.nn.conv2d_transpose(input_, w, output_shape=output_shape,
