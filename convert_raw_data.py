@@ -10,12 +10,13 @@ import mdct
 import pywt
 
 
-parser = argparse.ArgumentParser(description='Converts data to mlaudio format.')
-parser.add_argument('--sanity', action='store_true')
-parser.add_argument('--insanity', action='store_true')
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Converts data to mlaudio format.')
+    parser.add_argument('--sanity', action='store_true')
+    parser.add_argument('--insanity', action='store_true')
 
-args = parser.parse_args()
-print(args)
+    args = parser.parse_args()
+    print(args)
 BITRATE = 8192
 
 def do(command):
@@ -66,7 +67,7 @@ def preprocess(output_file):
     #raw = raw[:int(raw.shape[0]/BITRATE)*BITRATE]
     #raw = np.reshape(raw, [-1, WAV_X])
     #mdct = [do_mdct(row) for row in raw]
-    length = -1#BITRATE*5
+    length = -1#BITRATE*256
     if(len(wav['data'].shape) > 1):
         data = wav['data'][:length, 0]
         data_right = wav['data'][:length, 1]
@@ -140,20 +141,22 @@ def insanity_test(input_wav):
     tensorflow_wav.save_wav(wav, "insanity.wav")
 
 
-if(args.sanity):
-    sanity_test("input.wav")
-elif(args.insanity):
-    insanity_test("input.wav")
-else:
-    do("rm training/*.wav")
-    do("rm training/*.mlaudio")
-    #add_to_training("datasets/one-large")
-    #add_to_training("datasets/youtube-drums-2)
-    #add_to_training("datasets/youtube-drums-3")
-    #add_to_training('datasets/drums2')
-    add_to_training('datasets/youtube-drums-120bpm-1')
-    #add_to_training('datasets/videogame')
+if __name__ == '__main__':
 
-    #add_to_training("datasets/youtube-drums-120bpm-1")
-    #add_to_training("youtube/5")
-    #add_to_training("youtube/1")
+    if(args.sanity):
+        sanity_test("input.wav")
+    elif(args.insanity):
+        insanity_test("input.wav")
+    else:
+        do("rm training/*.wav")
+        do("rm training/*.mlaudio")
+        #add_to_training("datasets/one-large")
+        #add_to_training("datasets/youtube-drums-2)
+        #add_to_training("datasets/youtube-drums-3")
+        #add_to_training('datasets/drums2')
+        add_to_training('datasets/3')
+        #add_to_training('datasets/videogame')
+
+        #add_to_training("datasets/youtube-drums-120bpm-1")
+        #add_to_training("youtube/5")
+        #add_to_training("youtube/1")

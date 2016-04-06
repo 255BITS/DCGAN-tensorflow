@@ -45,16 +45,13 @@ def convert_mlaudio_to_wav(mlaudio):
     # We split the audio stream into 2, one for each speaker
     #if the dimensions change so will this function
     audio, audio_right = np.split(data, 2, 0)
-    print("Audio is", audio)
 
     mode = 'db1'
     data = pywt.waverec(audio[0].tolist(), mode)
     data_right = pywt.waverec(audio_right[0].tolist(), mode)
     # combine left and right streams, wav uses [-1, channels] as the output format
-    print("data is", np.shape(data))
     data = np.reshape(np.array(data), [-1, 1])
     data_right = np.reshape(np.array(data_right), [-1, 1])
-    print(data.shape)
     result =np.array(np.concatenate( [data, data_right], 1))
     mlaudio['data'] = result
     return mlaudio

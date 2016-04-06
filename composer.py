@@ -8,23 +8,20 @@ from utils import pp, visualize, to_json
 import tensorflow_wav
 
 
-dataset="full_size_lstm_gen_32k"
-wav_size=64
-is_crop=False
-batch_size=128
+dataset="lstm-wavelet-1"
+batch_size=16
 checkpoint_dir="checkpoint"
 bitrate=4096*2
-song_seconds=5
-song_step=1.0
 z_dim=64
 
-DIMENSIONS=2
+LENGTH=22
 
+COUNT=664112//batch_size
 
 with tf.Session() as sess:
     with tf.device('/cpu:0'):
       dcgan = DCGAN(sess, batch_size=batch_size,
-        dataset_name=dataset, is_crop=is_crop, checkpoint_dir=checkpoint_dir)
+        dataset_name=dataset, checkpoint_dir=checkpoint_dir)
       dcgan.load(checkpoint_dir)
 
       data = glob(os.path.join("./training", "*.mlaudio"))
@@ -35,42 +32,31 @@ with tf.Session() as sess:
 
       full_audio = []
 
-      second = 0.0
-      while(second < song_seconds):
+      i=0
+      leaves=[]
+      leaves_right=[]
+      while(i < COUNT):
         batch_z = np.random.uniform(-1, 1, [batch_size, z_dim]) \
                     .astype(np.float32)
-        second += song_step
-        #batch_z[0]=float(second)/song_seconds
         audio = dcgan.sample()
-        print("Audio shape", np.shape(audio))
 
-        #audio = np.swapaxes(audio, 1, 2)
-        full_audio.append(audio)
-      #  print("Full audio shape", np.shape(full_audio))
-      #  audio = np.reshape(audio,[-1, DIMENSIONS])
-      #  print("WAV shape", np.shape(audio))
-      #  audio = audio.tolist()[:bitrate]
-      full_audio = np.concatenate(full_audio, 0)
-      print("FA shape", np.shape(full_audio))
-      print("Stats min/max/mean/stddev", np.min(audio), np.max(audio), np.mean(audio), np.std(audio))
-
-      batch_wavs = full_audio
-      print('FA', np.min(batch_wavs), np.max(batch_wavs))
-      full_audio = batch_wavs
+        leaves.append(audio[0::2])
+        #print("Stats min/max/mean/stddev", np.min(audio), np.max(audio), np.mean(audio), np.std(audio))
+        leaves_right.append(audio[1::2])
+        if(i % 1000 == 0):
+            print(i)
+        i+=1
+      tree = hwav.reconstruct_tree(leaves)
+      tree_right = hwav.reconstruct_tree(leaves_right)
+      samplewav['wavdec']=[tree, tree_right]
 
 
-      print('shape is', np.shape(full_audio))
-      samplewav['data']=np.reshape(full_audio,[-1, 4096, DIMENSIONS])
       converted = tensorflow_wav.convert_mlaudio_to_wav(samplewav)
 
-      print('converted', np.shape(converted['data']), np.min(batch_wavs), np.max(batch_wavs))
-      samplewav['data']=converted['data']
-      print(samplewav['rate'], bitrate, len(full_audio))
-      #samplewav['data'] = np.reshape(samplewav['data'], [-1])
+      print('converted', np.shape(converted['wavdec']), np.min(batch_wavs), np.max(batch_wavs))
 
       filename = "./compositions/song.wav"
-      print("Saving with", samplewav)
-      tensorflow_wav.save_wav(samplewav, filename )
+      tensorflow_wav.save_wav(converted, filename )
 
 
 

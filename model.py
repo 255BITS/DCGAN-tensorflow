@@ -7,14 +7,13 @@ from ops import *
 from utils import *
 import tensorflow_wav
 import lstm
+import hwav
 
-WAV_HEIGHT=64
-WAV_WIDTH=64
-DIMENSIONS=2
+LENGTH = 22
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
-                 batch_size=64, sample_size = 2, wav_shape=[WAV_WIDTH, WAV_HEIGHT, DIMENSIONS],
+                 batch_size=64, sample_size = 2,
                  y_dim=None, z_dim=64, gf_dim=64, df_dim=64,
                  gfc_dim=1024, dfc_dim=1024, c_dim=1, dataset_name='default',
                  checkpoint_dir='checkpoint'):
@@ -35,7 +34,6 @@ class DCGAN(object):
         self.is_crop = is_crop
         self.batch_size = batch_size
         self.sample_size = sample_size
-        self.wav_shape = wav_shape
 
         self.net_size_q=512
         self.keep_prob = 0.9
@@ -78,7 +76,7 @@ class DCGAN(object):
 
     def build_model(self):
 
-        self.wavs = tf.placeholder(tf.float32, [self.batch_size, WAV_HEIGHT*WAV_WIDTH, DIMENSIONS],
+        self.wavs = tf.placeholder(tf.float32, [self.batch_size, LENGTH],
                                     name='real_wavs')
         self.batch_flatten = self.normalize_wav(tf.reshape(self.wavs, [self.batch_size, -1]))
 
@@ -92,13 +90,8 @@ class DCGAN(object):
         print(eps)
 
  
-        #self.encoded_wavs=tensorflow_wav.encode(self.wavs)
-        #self.encoded_wavs = tf.reshape(self.encoded_wavs, [self.batch_size]+self.wav_shape)
-        #self.z_sum = tf.histogram_summary("z", self.z)
 
-
-        print("shapes d_wav", self.wav_shape, self.wavs.get_shape())
-        d_wav = tf.reshape(self.wavs, [self.batch_size] + self.wav_shape)
+        d_wav = tf.reshape(self.wavs, [self.batch_size, LENGTH])
         self.G = self.generator()
         self.batch_reconstruct_flatten = self.normalize_wav(tf.reshape(self.G, [self.batch_size, -1]))
 
@@ -154,7 +147,7 @@ class DCGAN(object):
       latent_loss = -0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq
                                          - tf.square(self.z_mean)
                                          - tf.exp(self.z_log_sigma_sq), 1)
-      self.vae_loss = tf.reduce_mean(reconstr_loss + latent_loss) / (WAV_WIDTH * WAV_HEIGHT * DIMENSIONS) # average over batch and pixel
+      self.vae_loss = tf.reduce_mean(reconstr_loss + latent_loss) / LENGTH # average over batch and pixel
 
     def encode(self, X):
       """Transform data by mapping it into the latent space."""
@@ -210,133 +203,131 @@ class DCGAN(object):
             batch_files = glob(os.path.join("./training", "*.mlaudio"))
             np.random.shuffle(batch_files)
 
-            def get_wav_content(files):
+            def get_wav_content(files, batch_size):
                 for filee in files:
                     print("Yielding ", filee)
-                    try:
-                        yield tensorflow_wav.get_pre(filee)
-                    except Exception as e:
-                        print("Could not load ", filee, e)
+                    #try:
+
+                    mlaudio = tensorflow_wav.get_pre(filee)
+                    left, right = mlaudio['wavdec']
+                    data_left = hwav.leaves_from(left)
+                    data_right = hwav.leaves_from(right)
+
+                    batch = np.empty(len(data_left) + len(data_right)).tolist()
+                    batch[0::2]=data_left
+                    batch[1::2]=data_right
+                    print("LEN IS", len(batch))
+                    for i in range(0, len(batch), batch_size):
+                        yield batch[i*batch_size:(i+1)*batch_size]
+                    #except Exception as e:
+                    #    print("Could not load ", filee, e)
 
             #print(batch)
             idx=0
             batch_idxs=0
             diverged_count = 0
-            for wavobj in get_wav_content(batch_files):
-                print('shape is', wavobj['data'].shape)
-                wavdata = wavobj['data']
-
-                dims_map = config.batch_size * WAV_HEIGHT*WAV_WIDTH * DIMENSIONS
-                print("DIM map is", dims_map)
-                flattened = np.reshape(wavdata, [-1])
-                max_items = int(flattened.shape[0]/dims_map)*dims_map
-                print("MAX items ", max_items)
-
-                batch_item = flattened[:max_items]
-                batch_wavs_multiple = batch_item.reshape([-1, config.batch_size, WAV_HEIGHT*WAV_WIDTH, DIMENSIONS])
+            for wavobj in get_wav_content(batch_files, self.batch_size):
+                batch_wavs = wavobj
                 batch_idxs+=1
                 errD_fake = 0
                 errD_real = 0
                 errG = 0
-                for i, batch_wavs in enumerate(batch_wavs_multiple):
-                    idx+=1
-                    #print("Min:", np.min(batch_wavs))
-                    #print("Max:", np.max(batch_wavs))
 
-                    _ = self.sess.run((vae_optim, self.vae_loss),
-                            feed_dict={self.wavs: batch_wavs})
-                    #if(errD_fake > 10):
-                    #    errd_range = 3
-                    #elif(errD_fake > 8):
-                    #    errd_range = 2
-                    #else:
-                    errd_range=1
-                    #print('min', 'max', 'mean', 'stddev', batch_wavs.min(), batch_wavs.max(), np.mean(batch_wavs), np.std(batch_wavs))
-                    for repeat in range(errd_range):
-                        #print("discrim ", errd_range)
-                        # Update D network
-                        _= self.sess.run([d_optim],
-                                feed_dict={ self.wavs: batch_wavs })
-                        #self.writer.add_summary(summary_str, counter)
+                idx+=1
+                #print("Min:", np.min(batch_wavs))
+                #print("Max:", np.max(batch_wavs))
 
-                    # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                    #if(errG > 10):
-                    #    errg_range = 4
-                    #if(errG > 5):
-                    #    errg_range = 2
-                    #else:
-                    errg_range=1
-                    for repeat in range(errg_range):
-                        #print("generating ", errg_range)
-                        # Update G network
-                        _= self.sess.run([g_optim],
-                                feed_dict={ self.wavs: batch_wavs })
-                        #self.writer.add_summary(summary_str, counter)
+                _ = self.sess.run((vae_optim, self.vae_loss),
+                        feed_dict={self.wavs: batch_wavs})
+                #if(errD_fake > 10):
+                #    errd_range = 3
+                #elif(errD_fake > 8):
+                #    errd_range = 2
+                #else:
+                errd_range=1
+                #print('min', 'max', 'mean', 'stddev', batch_wavs.min(), batch_wavs.max(), np.mean(batch_wavs), np.std(batch_wavs))
+                for repeat in range(errd_range):
+                    #print("discrim ", errd_range)
+                    # Update D network
+                    _= self.sess.run([d_optim],
+                            feed_dict={ self.wavs: batch_wavs })
+                    #self.writer.add_summary(summary_str, counter)
 
-                    errD_fake = self.d_loss_fake.eval({self.wavs: batch_wavs})
-                    errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
-                    errG = self.g_loss.eval({self.wavs: batch_wavs})
-                    errVAE = self.vae_loss.eval({self.wavs: batch_wavs})
-                    rG = self.G.eval({self.wavs: batch_wavs})
-                    #H4 = self.h4.eval({self.wavs: batch_wavs})
-                    #bf = self.batch_flatten.eval({self.wavs: batch_wavs})
-                    #brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
-                    #z = self.z.eval({self.wavs: batch_wavs})
-                    gen_output = self.gen_output.eval({self.wavs: batch_wavs})
+                # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
+                #if(errG > 10):
+                #    errg_range = 4
+                #if(errG > 5):
+                #    errg_range = 2
+                #else:
+                errg_range=1
+                for repeat in range(errg_range):
+                    #print("generating ", errg_range)
+                    # Update G network
+                    _= self.sess.run([g_optim],
+                            feed_dict={ self.wavs: batch_wavs })
+                    #self.writer.add_summary(summary_str, counter)
 
-                    #print("H4", np.min(H4), np.max(H4))
-                    #print("z", np.min(z), np.max(z))
-                    #print("bf", np.min(bf), np.max(bf))
-                    #print("brf", np.min(brf), np.max(brf))
-                    print("rG", np.min(rG), np.max(rG))
-                    print("gen_out", np.min(gen_output), np.max(gen_output))
+                errD_fake = self.d_loss_fake.eval({self.wavs: batch_wavs})
+                errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
+                errG = self.g_loss.eval({self.wavs: batch_wavs})
+                errVAE = self.vae_loss.eval({self.wavs: batch_wavs})
+                rG = self.G.eval({self.wavs: batch_wavs})
+                #H4 = self.h4.eval({self.wavs: batch_wavs})
+                #bf = self.batch_flatten.eval({self.wavs: batch_wavs})
+                #brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
+                #z = self.z.eval({self.wavs: batch_wavs})
 
-                    counter += 1
-                    print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f vae_loss: %.8f" \
-                        % (epoch, idx, batch_idxs,
-                            time.time() - start_time, errD_fake, errD_real, errG, errVAE))
+                #print("H4", np.min(H4), np.max(H4))
+                #print("z", np.min(z), np.max(z))
+                #print("bf", np.min(bf), np.max(bf))
+                #print("brf", np.min(brf), np.max(brf))
+                print("rG", np.min(rG), np.max(rG))
 
-                    SAVE_COUNT=300
-                    
-                    #print("Batch ", counter)
-                    if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
-                        print("Saving after next batch")
-                    if(errD_fake == 0 or errD_fake > 23 or errG > 23 or errVAE > 2 or np.isnan(errVAE)):
-                        diverged_count += 1
-                        print("Error rate above threshold")
-                        if(diverged_count > 20):
-                            print("Loading from last checkpoint")
-                            loaded = self.load(self.checkpoint_dir)
-                            diverged_count = 0
-                            print("loaded", loaded)
+                counter += 1
+                print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f vae_loss: %.8f" \
+                    % (epoch, idx, batch_idxs,
+                        time.time() - start_time, errD_fake, errD_real, errG, errVAE))
 
-                    else:
+                SAVE_COUNT=300
+                
+                #print("Batch ", counter)
+                if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
+                    print("Saving after next batch")
+                if(errD_fake == 0 or errD_fake > 23 or errG > 23 or errVAE > 2 or np.isnan(errVAE)):
+                    diverged_count += 1
+                    print("Error rate above threshold")
+                    if(diverged_count > 20):
+                        print("Loading from last checkpoint")
+                        loaded = self.load(self.checkpoint_dir)
                         diverged_count = 0
-                        if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-2:
-                            print("Saving !")
-                            self.save(config.checkpoint_dir, counter)
+                        print("loaded", loaded)
+
+                else:
+                    diverged_count = 0
+                    if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-2:
+                        print("Saving !")
+                        self.save(config.checkpoint_dir, counter)
 
 
     def sample(self):
         result = self.sess.run(
             self.sampler,
-            feed_dict={self.wavs: np.ones((self.batch_size, WAV_WIDTH* WAV_HEIGHT, DIMENSIONS))}
+            feed_dict={self.wavs: np.ones((self.batch_size, LENGTH))}
         )
-        print("len res", np.shape(result))
         return result
 
     def discriminator(self, wav, reuse=False, y=None):
         if reuse:
             tf.get_variable_scope().reuse_variables()
-        c2d = conv2d(wav, 64, name='d_h0_conv')
-        c2d = conv2d(c2d, 8, name='d_h1_conv')
+        #c2d = conv2d(wav, 64, name='d_h0_conv')
+        #c2d = conv2d(c2d, 8, name='d_h1_conv')
         #c2d = self.d_bn2(c2d)
-        lstm_input = tf.reshape(c2d, [self.batch_size, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//4])
-        lstm_layer = lstm.discriminator(lstm_input,WAV_HEIGHT*WAV_WIDTH*DIMENSIONS )
-        bn_input =  tf.reshape(lstm_layer, [self.batch_size, WAV_HEIGHT,WAV_WIDTH,DIMENSIONS])
-        bn = bn_input
+        #lstm_input = tf.reshape(c2d, [self.batch_size, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//4])
+        lstm_layer = lstm.discriminator(wav,LENGTH )
+        #bn_input =  tf.reshape(lstm_layer, [self.batch_size, WAV_HEIGHT,WAV_WIDTH,DIMENSIONS])
+        #bn = bn_input
         #bn = self.d_bn3(bn_input)
-        return tf.nn.sigmoid(bn)
+        return tf.nn.sigmoid(lstm_layer)
 
     def generator(self, y=None):
         return self.build_generator(True)
@@ -345,23 +336,8 @@ class DCGAN(object):
         if(not is_generator):
             tf.get_variable_scope().reuse_variables()
 
-        print("Generator creation")
-        z = self.z
-        print('z', z.get_shape())
+        output = lstm.generator(self.z, LENGTH)
 
-        lstm_gen = lstm.generator(self.z, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//128)
-
-        reshaped = tf.reshape(lstm_gen, [self.batch_size, WAV_WIDTH//8, WAV_HEIGHT//8, DIMENSIONS//2])
-
-        batch_lstm = self.g_bn0(reshaped)
-        print("batch shape", batch_lstm.get_shape())
-        #c2d = conv2d(batch_lstm, 32, name='g_h0_conv')
-        c2d_reshape = deconv2d(batch_lstm, [self.batch_size, WAV_HEIGHT//4,WAV_WIDTH//4, DIMENSIONS], name='g_h0_conv')
-        c2d_reshape2 = deconv2d(c2d_reshape, [self.batch_size, WAV_HEIGHT//2,WAV_WIDTH//2, DIMENSIONS], name='g_h1_conv')
-        c2d_reshape3 = deconv2d(c2d_reshape2, [self.batch_size, WAV_HEIGHT//1,WAV_WIDTH//1, DIMENSIONS], name='g_h2_conv')
-        #c2d_reshape = tf.reshape(c2d, [self.batch_size, WAV_HEIGHT,WAV_WIDTH, DIMENSIONS])
-        #output = self.g_bn1(c2d_reshape3)
-        self.gen_output = output = c2d_reshape3
         return tensorflow_wav.scale_up(output)
 
 
