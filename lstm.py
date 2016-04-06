@@ -20,10 +20,10 @@ def discriminator(input, vocab_size):
         print("logits_", logits_)
         # if it's a repeat, one of the memory cells should fire harsh
         w = tf.get_variable('d_softmax_w', [memory, vocab_size], dtype=tf.float32, initializer=tf.truncated_normal_initializer(0, 0.1))
-        b = tf.get_variable('d_softmax_b', [vocab_size], dtype=tf.float32, initializer=tf.constant_initializer(0))
+        b = tf.get_variable('d_softmax_b', [vocab_size], dtype=tf.float32, initializer=tf.constant_initializer(0.00))
         wx_b = tf.nn.xw_plus_b(logits_, w, b)
         print('wx_b', wx_b)
-        return tf.nn.relu(wx_b)-6
+        return tf.nn.relu(wx_b)
         #is_repeat = tf.reduce_max(tf.square(tf.nn.softmax(wx_b)), 1)
         #print("Output shape is", output, state)
 
@@ -51,7 +51,7 @@ def generator(input, output_size):
         print("logits_", logits_)
         # if it's a repeat, one of the memory cells should fire harsh
         w = tf.get_variable('g_softmax_w', [memory, vocab_size], dtype=tf.float32, initializer=tf.truncated_normal_initializer(0, 0.1))
-        b = tf.get_variable('g_softmax_b', [vocab_size], dtype=tf.float32, initializer=tf.constant_initializer(0))
+        b = tf.get_variable('g_softmax_b', [vocab_size], dtype=tf.float32, initializer=tf.constant_initializer(0.0))
         wx_b = tf.nn.xw_plus_b(logits_, w, b)
         #softmax = tf.square(tf.nn.softmax(wx_b))
         #print('wx_b', wx_b, softmax)

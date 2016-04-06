@@ -133,7 +133,7 @@ def ff_nn(input, name):
 def scale_up(input):
     with tf.variable_scope("scale"):
 
-        output = tf.nn.tanh(input)
+        output = (tf.nn.sigmoid(input)-0.5)*2
         w = 46340
         return output*w
 
