@@ -331,7 +331,7 @@ class DCGAN(object):
         c2d = conv2d(wav, 64, name='d_h0_conv')
         c2d = conv2d(c2d, 8, name='d_h1_conv')
         #c2d = self.d_bn2(c2d)
-        lstm_input = tf.reshape(c2d, [self.batch_size, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//4])
+        lstm_input = tf.reshape(tf.nn.tanh(c2d), [self.batch_size, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//4])
         lstm_layer = lstm.discriminator(lstm_input,WAV_HEIGHT*WAV_WIDTH*DIMENSIONS )
         bn_input =  tf.reshape(lstm_layer, [self.batch_size, WAV_HEIGHT,WAV_WIDTH,DIMENSIONS])
         bn = bn_input
