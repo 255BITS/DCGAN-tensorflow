@@ -37,7 +37,7 @@ def generator(input, output_size):
         vocab_size = output_size
         memory = 256
         print('input',input)
-        cell = rnn_cell.BasicLSTMCell(memory)
+        cell = rnn_cell.GRUCell(memory)
         stacked_cell = rnn_cell.MultiRNNCell([cell]*2)
         logits, state = seq2seq.basic_rnn_seq2seq(cell_input, zeros, stacked_cell)
 
