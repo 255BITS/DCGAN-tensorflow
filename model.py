@@ -318,10 +318,11 @@ class DCGAN(object):
                         self.save(config.checkpoint_dir, counter)
 
 
-    def sample(self):
+    def sample(self, t):
         result = self.sess.run(
             self.sampler,
-            feed_dict={self.wavs: np.ones((self.batch_size, LENGTH))}
+            feed_dict={self.wavs: np.ones((self.batch_size, LENGTH)),
+                       self.t: t}
         )
         return result
 

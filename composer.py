@@ -10,7 +10,7 @@ import tensorflow_wav
 
 
 dataset="wavelet-1"
-batch_size=2048
+batch_size=4096
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 z_dim=64
@@ -39,7 +39,15 @@ with tf.Session() as sess:
       while(i < COUNT):
         batch_z = np.random.uniform(-1, 1, [batch_size, z_dim]) \
                     .astype(np.float32)
-        audio = dcgan.sample()
+        t = dcgan.coordinates(dcgan.t_dim)
+        position = i / COUNT
+        stepsize = 1 / COUNT
+        t = np.array(t, dtype=np.float32)
+        t *= 0.5*stepsize
+        t += position
+        t *= 20
+        print(t)
+        audio = dcgan.sample(t)
 
         leaves.append(audio[0::2])
         #print("Stats min/max/mean/stddev", np.min(audio), np.max(audio), np.mean(audio), np.std(audio))
