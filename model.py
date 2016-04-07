@@ -8,8 +8,8 @@ from utils import *
 import tensorflow_wav
 import lstm
 
-WAV_HEIGHT=64*2
-WAV_WIDTH=64*2
+WAV_HEIGHT=64
+WAV_WIDTH=64
 DIMENSIONS=2
 
 class DCGAN(object):
@@ -329,15 +329,18 @@ class DCGAN(object):
     def discriminator(self, wav, reuse=False, y=None):
         if reuse:
             tf.get_variable_scope().reuse_variables()
+        print("WAV is", wav)
         c2d = lrelu(conv2d(wav, 64, name='d_h0_conv'))
-        c2d = lrelu(conv2d(c2d, 8, name='d_h1_conv'))
+        c2d = lrelu(conv2d(c2d, 128, name='d_h1_conv'))
+        #c2d = lrelu(conv2d(c2d, 256, name='d_h2_conv'))
+        print("C2D", c2d.get_shape())
+        lin_input = tf.reshape(c2d, [self.batch_size, -1])
+        lin = linear(lin_input, 512, 'd_lin')
         #c2d = self.d_bn2(c2d)
-        lstm_input = tf.reshape(c2d, [self.batch_size, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//4])
-        lstm_layer = lstm.discriminator(lstm_input,WAV_HEIGHT*WAV_WIDTH*DIMENSIONS )
-        bn_input =  tf.reshape(lstm_layer, [self.batch_size, WAV_HEIGHT,WAV_WIDTH,DIMENSIONS])
+        lstm_input = tf.reshape(lin, [self.batch_size, -1])
+        lstm_layer = lstm.discriminator2(lstm_input, 1)
         #bn = bn_input
-        bn = self.d_bn3(bn_input)
-        return tf.nn.sigmoid(bn)
+        return tf.nn.sigmoid(lstm_layer)
 
     def generator(self, y=None):
         return self.build_generator(True)
@@ -351,25 +354,30 @@ class DCGAN(object):
         scale = 8.0
         print('z', z.get_shape())
 
-        lstm_gen = lstm.generator(self.z, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//128)
+        proj_z = linear(z, 1024, 'g_proj')
+        lstm_gen = lrelu(lstm.generator2(proj_z, 2048))
 
         #lstm_gen = fully_connected(z*scale, WAV_HEIGHT*WAV_WIDTH//64, scope="g_fc_0")
-        reshaped = tf.reshape(lstm_gen, [self.batch_size, WAV_WIDTH//8, WAV_HEIGHT//8, DIMENSIONS//2])
+        reshaped = tf.reshape(lstm_gen, [self.batch_size, 8, 8, 32])
 
-        batch_lstm = self.g_bn0(reshaped)
-        print("batch shape", batch_lstm.get_shape())
+        #batch_lstm = self.g_bn0(reshaped)
+        #print("batch shape", batch_lstm.get_shape())
         #c2d = conv2d(batch_lstm, 32, name='g_h0_conv')
-        c2d_reshape = deconv2d(batch_lstm, [self.batch_size, WAV_HEIGHT//4,WAV_WIDTH//4, DIMENSIONS], name='g_h0_conv')
-        c2d_reshape = lrelu(c2d_reshape, leak=0.4)
-        c2d_reshape2 = deconv2d(c2d_reshape, [self.batch_size, WAV_HEIGHT//2,WAV_WIDTH//2, DIMENSIONS], name='g_h1_conv')
-        c2d_reshape2 = lrelu(c2d_reshape2, leak=0.4)
-        c2d_reshape3 = deconv2d(c2d_reshape2, [self.batch_size, WAV_HEIGHT//1,WAV_WIDTH//1, DIMENSIONS], name='g_h2_conv')
-        c2d_reshape3 = lrelu(c2d_reshape3, leak=0.2)
+        c2d_reshape = lrelu(deconv2d(reshaped, [self.batch_size, 16,16, 16], name='g_h0_conv'))
+        #c2d_reshape = tf.reshape(c2d_reshape, [self.batch_size, -1])
+        #c2d_reshape = linear(c2d_reshape, 64*64*2, 'g_test_lin')
+        c2d_reshape = lrelu(deconv2d(c2d_reshape, [self.batch_size, 32,32, 8], name='g_h1_conv'))
+        c2d_reshape = lrelu(deconv2d(c2d_reshape, [self.batch_size, 64,64, 2], name='g_h2_conv'))
+        #c2d_reshape2 = lrelu(c2d_reshape2, leak=0.4)
+        #c2d_reshape3 = deconv2d(c2d_reshape2, [self.batch_size, WAV_HEIGHT//1,WAV_WIDTH//1, DIMENSIONS], name='g_h2_conv')
+        #c2d_reshape3 = lrelu(c2d_reshape3, leak=0.2)
 
-        fc = fully_connected(tf.reshape(c2d_reshape, [self.batch_size, WAV_HEIGHT*WAV_WIDTH//8]), WAV_HEIGHT*WAV_HEIGHT*DIMENSIONS, scope='g_fc')
-        fp = tf.reshape(fc,  [self.batch_size, WAV_HEIGHT,WAV_WIDTH, DIMENSIONS])
+        #fc = fully_connected(tf.reshape(c2d_reshape, [self.batch_size, WAV_HEIGHT*WAV_WIDTH//8]), WAV_HEIGHT*WAV_HEIGHT*DIMENSIONS, scope='g_fc')
+        c2d_reshape = tf.reshape(c2d_reshape,  
+                [self.batch_size, WAV_HEIGHT,WAV_WIDTH, DIMENSIONS])
         #self.gen_output = output = self.g_bn1(c2d_reshape3)
-        self.gen_output = output = fp
+        self.gen_output = output = c2d_reshape
+        print("output is ", output)
         return tensorflow_wav.scale_up(output)
 
 

@@ -15,7 +15,7 @@ parser.add_argument('--insanity', action='store_true')
 
 args = parser.parse_args()
 print(args)
-BITRATE = 4096*2
+BITRATE = 32768
 
 def do(command):
     print("Running " + command)
@@ -99,6 +99,7 @@ def preprocess(output_file):
 def add_to_training(dir):
     files = glob.glob(dir+"/*.wav")
     files += glob.glob(dir+"/*.mp3")
+    files += glob.glob(dir+"/*.m4a")
     print(dir+'/wav')
     #files = files[:1]
     for file in files:
@@ -164,7 +165,7 @@ else:
     #add_to_training('datasets/drums2')
     #add_to_training('datasets/youtube-guitar')
     #add_to_training('datasets/videogame')
-
-    add_to_training("datasets/youtube-drums-120bpm-1")
+    add_to_training("datasets/metronomes")
+    #add_to_training("datasets/youtube-drums-120bpm-1")
     #add_to_training("youtube/5")
     #add_to_training("youtube/1")
