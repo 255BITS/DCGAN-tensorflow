@@ -13,7 +13,7 @@ LENGTH = 20
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
-                 batch_size=64, sample_size = 2,
+                 batch_size=64, sample_size = 2, t_dim=LENGTH,
                  y_dim=None, z_dim=64, gf_dim=64, df_dim=64,
                  gfc_dim=1024, dfc_dim=1024, c_dim=1, dataset_name='default',
                  checkpoint_dir='checkpoint'):
@@ -34,6 +34,7 @@ class DCGAN(object):
         self.is_crop = is_crop
         self.batch_size = batch_size
         self.sample_size = sample_size
+        self.t_dim = t_dim
 
         self.net_size_q=512
         self.keep_prob = 0.9
@@ -80,6 +81,9 @@ class DCGAN(object):
                                     name='real_wavs')
         self.batch_flatten = self.normalize_wav(tf.reshape(self.wavs, [self.batch_size, -1]))
 
+        self.t_vec = self.coordinates(self.t_dim)
+
+        self.t = tf.placeholder(tf.float32, [self.batch_size, LENGTH])
 
         self.z_mean, self.z_log_sigma_sq = self.encoder()
 
@@ -218,7 +222,7 @@ class DCGAN(object):
                     batch[1::2]=data_right
                     print("LEN IS", len(batch))
                     for i in range(0, len(batch)-batch_size, batch_size):
-                        yield batch[i:i+batch_size]
+                        yield batch[i:i+batch_size], i/len(batch), 1.0/batch_size
                     #except Exception as e:
                     #    print("Could not load ", filee, e)
 
@@ -226,20 +230,24 @@ class DCGAN(object):
             idx=0
             batch_idxs=0
             diverged_count = 0
-            for wavobj in get_wav_content(batch_files, self.batch_size):
-                print("WAV SHAPE", np.shape(wavobj))
+            for wavobj, position, stepsize in get_wav_content(batch_files, self.batch_size):
                 batch_wavs = wavobj
                 batch_idxs+=1
                 errD_fake = 0
                 errD_real = 0
                 errG = 0
+                t = self.coordinates(self.t_dim)
+                t = np.array(t, dtype=np.float32)
+                t *= 0.25*stepsize
+                t += position
+                t *= 20
 
                 idx+=1
                 #print("Min:", np.min(batch_wavs))
                 #print("Max:", np.max(batch_wavs))
 
                 _ = self.sess.run((vae_optim, self.vae_loss),
-                        feed_dict={self.wavs: batch_wavs})
+                        feed_dict={self.t: t, self.wavs: batch_wavs})
                 #if(errD_fake > 10):
                 #    errd_range = 3
                 #elif(errD_fake > 8):
@@ -251,7 +259,7 @@ class DCGAN(object):
                     #print("discrim ", errd_range)
                     # Update D network
                     _= self.sess.run([d_optim],
-                            feed_dict={ self.wavs: batch_wavs })
+                            feed_dict={self.t: t, self.wavs: batch_wavs })
                     #self.writer.add_summary(summary_str, counter)
 
                 # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
@@ -265,14 +273,14 @@ class DCGAN(object):
                     #print("generating ", errg_range)
                     # Update G network
                     _= self.sess.run([g_optim],
-                            feed_dict={ self.wavs: batch_wavs })
+                            feed_dict={self.t: t, self.wavs: batch_wavs })
                     #self.writer.add_summary(summary_str, counter)
 
-                errD_fake = self.d_loss_fake.eval({self.wavs: batch_wavs})
-                errD_real = self.d_loss_real.eval({self.wavs: batch_wavs})
-                errG = self.g_loss.eval({self.wavs: batch_wavs})
-                errVAE = self.vae_loss.eval({self.wavs: batch_wavs})
-                rG = self.G.eval({self.wavs: batch_wavs})
+                errD_fake = self.d_loss_fake.eval({self.t: t, self.wavs: batch_wavs})
+                errD_real = self.d_loss_real.eval({self.t: t, self.wavs: batch_wavs})
+                errG = self.g_loss.eval({self.t: t, self.wavs: batch_wavs})
+                errVAE = self.vae_loss.eval({self.t: t, self.wavs: batch_wavs})
+                rG = self.G.eval({self.t: t, self.wavs: batch_wavs})
                 #H4 = self.h4.eval({self.wavs: batch_wavs})
                 #bf = self.batch_flatten.eval({self.wavs: batch_wavs})
                 #brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
@@ -320,15 +328,24 @@ class DCGAN(object):
     def discriminator(self, wav, reuse=False, y=None):
         if reuse:
             tf.get_variable_scope().reuse_variables()
-        #c2d = conv2d(wav, 64, name='d_h0_conv')
-        #c2d = conv2d(c2d, 8, name='d_h1_conv')
-        #c2d = self.d_bn2(c2d)
-        #lstm_input = tf.reshape(c2d, [self.batch_size, WAV_HEIGHT*WAV_WIDTH*DIMENSIONS//4])
-        lstm_layer = lstm.discriminator(wav,LENGTH )
-        #bn_input =  tf.reshape(lstm_layer, [self.batch_size, WAV_HEIGHT,WAV_WIDTH,DIMENSIONS])
-        #bn = bn_input
-        #bn = self.d_bn3(bn_input)
-        return tf.nn.sigmoid(lstm_layer)
+        # convert to 2d - seems to be ok
+        wav_unroll = tf.reshape(wav, [self.batch_size*LENGTH, 1])
+        depth = 64
+        network_size = 4
+
+        U = fully_connected(wav_unroll, network_size, 'd_0_wav')
+        
+        H = tf.nn.softplus(U)
+        for i in range(1, depth):
+          H = tf.nn.tanh(fully_connected(H, network_size, 'd_tanh_'+str(i)))
+
+        #output = lstm.generator(self.z, LENGTH)
+        output = tf.sigmoid(fully_connected(H, 1, "d_fc_out"))
+
+
+
+        return tf.nn.sigmoid(output)
+
 
     def generator(self, y=None):
         return self.build_generator(True)
@@ -336,8 +353,29 @@ class DCGAN(object):
     def build_generator(self,is_generator):
         if(not is_generator):
             tf.get_variable_scope().reuse_variables()
+        network_size = 256
+        scale = 10.0
+        depth = 4
 
-        output = lstm.generator(self.z, LENGTH)
+        z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * \
+                        tf.ones([LENGTH, 1], dtype=tf.float32) * scale
+        z_unroll = tf.reshape(z_scaled, [self.batch_size*LENGTH, self.z_dim])
+        t_unroll = tf.reshape(self.t, [self.batch_size*self.t_dim, 1])
+
+        U = fully_connected(z_unroll, network_size, 'g_0_z') + \
+            fully_connected(t_unroll, network_size, 'g_0_t', with_bias = False) 
+
+        print("U", U.get_shape())
+        
+        H = tf.nn.softplus(U)
+        for i in range(1, depth):
+          H = tf.nn.tanh(fully_connected(H, network_size//i, 'g_tanh_'+str(i)))
+          print("H", H.get_shape())
+
+        #output = lstm.generator(self.z, LENGTH)
+        output = fully_connected(H, 1, "g_fc_out")
+        output = tf.reshape(output, [self.batch_size, LENGTH])
+        print("OUTPUT LEN", output.get_shape())
 
         return tensorflow_wav.scale_up(output)
 
@@ -372,3 +410,8 @@ class DCGAN(object):
         else:
             print("FALSE")
             return False
+    def coordinates(self, t_dim=64):
+        t_range = (np.arange(t_dim)-(t_dim-1)/2.0)/(t_dim-1)/0.5
+        t_mat = np.tile(t_range, self.batch_size).reshape(self.batch_size, t_dim)
+        return t_mat
+

@@ -47,12 +47,18 @@ def convert_mlaudio_to_wav(mlaudio):
     audio, audio_right = np.split(data, 2, 0)
 
     mode = 'db1'
+    #<<<<<<< Updated upstream
     print("data out of form", np.shape(audio))
     for elem in audio[0]:
         print("elem shape is ", len(elem))
 
     data = pywt.waverec(np.squeeze(audio).tolist(), mode)
     data_right = pywt.waverec(np.squeeze(audio_right).tolist(), mode)
+    #=======
+    #print("data out of form", np.shape(audio), [np.shape(a) for a in audio])
+    #data = [ pywt.waverec(np.squeeze(a).tolist(), mode) for a in audio]
+    #data_right = [ pywt.waverec(np.squeeze(a).tolist(), mode) for a in audio_right]
+    #>>>>>>> Stashed changes
     # combine left and right streams, wav uses [-1, channels] as the output format
     print("data out of form", np.shape(data))
     data = np.reshape(np.array(data), [-1, 1])
