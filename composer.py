@@ -58,7 +58,8 @@ with tf.Session() as sess:
 
       converted = tensorflow_wav.convert_mlaudio_to_wav(samplewav)
 
-      print('converted', np.shape(converted['wavdec']), np.min(batch_wavs), np.max(batch_wavs))
+      batch_wavs = converted['wavdec']
+      #print('converted', np.shape(converted['wavdec']), np.min(batch_wavs), np.max(batch_wavs))
 
       filename = "./compositions/song.wav"
       tensorflow_wav.save_wav(converted, filename )

@@ -46,7 +46,7 @@ def tree_from_dense(dense):
         #print('max is', max)
         length = len(layer)
         layer = np.array(layer)
-        print("length is ", length, max, n)
+        #print("length is ", length, max, n)
         layers.append(layer[0::math.ceil(length/max)].tolist())
     return layers
 def reconstruct_tree(leaves, tree=[]):
@@ -73,7 +73,7 @@ def leaves_from(audio):
     total = len(audio[-1])
     for i in range(0, len(audio)):
         sum+=len(audio[i])
-        print(i, len(audio[i]), sum)
+        #print(i, len(audio[i]), sum)
 
     while(n<total//2):
         newleaf = leaf(n, audio)
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     audio_right = reconstruct_tree(leaves_right)
     mlaudio = [audio, audio_right]
     print('mlaudio is', np.shape(mlaudio))
-    mlaudio_orig['wavedec'] = mlaudio
+    mlaudio_orig['wavdec'] = mlaudio
     out = tensorflow_wav.convert_mlaudio_to_wav(mlaudio_orig)
     outfile = input_wav+".sanity.wav"
     tensorflow_wav.save_wav(out, outfile)
