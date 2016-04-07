@@ -112,8 +112,12 @@ if __name__ == '__main__':
     mlaudio= mlaudio_orig["wavdec"]
     leaves = leaves_from(mlaudio[0])
     leaves_right = leaves_from(mlaudio[1])
+    print("leaves from", [len(x) for x in mlaudio[0]])
+    print("leaves 2 from", [len(x) for x in mlaudio[1]])
     audio = reconstruct_tree(leaves)
     audio_right = reconstruct_tree(leaves_right)
+    print("reconstructed tree", [len(x) for x in audio])
+    print("reconstructed tree 2", [len(x) for x in audio_right])
     mlaudio = [audio, audio_right]
     print('mlaudio is', np.shape(mlaudio))
     mlaudio_orig['wavdec'] = mlaudio

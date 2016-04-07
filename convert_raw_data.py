@@ -67,7 +67,7 @@ def preprocess(output_file):
     #raw = raw[:int(raw.shape[0]/BITRATE)*BITRATE]
     #raw = np.reshape(raw, [-1, WAV_X])
     #mdct = [do_mdct(row) for row in raw]
-    length = -1#BITRATE*256
+    length = BITRATE*32
     if(len(wav['data'].shape) > 1):
         data = wav['data'][:length, 0]
         data_right = wav['data'][:length, 1]
