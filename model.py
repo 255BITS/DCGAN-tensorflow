@@ -9,7 +9,7 @@ import tensorflow_wav
 import lstm
 import hwav
 
-LENGTH = 22
+LENGTH = 20
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,

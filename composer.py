@@ -9,15 +9,15 @@ import hwav
 import tensorflow_wav
 
 
-dataset="lstm-wavelet-2"
-batch_size=256
+dataset="wavelet-1"
+batch_size=2048
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 z_dim=64
 
-LENGTH=22
+LENGTH=20
 
-COUNT=664112//batch_size
+COUNT=131072//batch_size
 
 with tf.Session() as sess:
     with tf.device('/cpu:0'):
