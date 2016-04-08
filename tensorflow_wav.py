@@ -146,6 +146,6 @@ def scale_up(input):
     with tf.variable_scope("scale"):
 
         output = tf.nn.tanh(input)
-        w = 46340
+        w = 130000
         return output*w
 

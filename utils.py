@@ -196,3 +196,8 @@ def visualize(sess, dcgan, config, option):
     new_wav_set = [merge(np.array([wavs[idx] for wavs in wav_set]), [10, 10]) \
         for idx in range(64) + range(63, -1, -1)]
     make_gif(new_wav_set, './samples/test_gif_merged.gif', duration=8)
+
+def rolling_window(a, window):
+    shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+    strides = a.strides + (a.strides[-1],)
+    return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)

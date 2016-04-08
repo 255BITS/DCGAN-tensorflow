@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import tensorflow as tf
+import scipy
 
 from glob import glob
 from model import DCGAN
@@ -9,15 +10,16 @@ import hwav
 import tensorflow_wav
 
 
-dataset="wavelet-1"
-batch_size=4096
+dataset="wavelet-4"
+batch_size=512
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 z_dim=64
 
 LENGTH=20
+Y_DIM=32
 
-COUNT=131072//batch_size
+COUNT=131072//(batch_size*Y_DIM/2.0)
 
 with tf.Session() as sess:
     with tf.device('/cpu:0'):
@@ -46,8 +48,9 @@ with tf.Session() as sess:
         t *= 0.5*stepsize
         t += position
         t *= 20
-        print(t)
         audio = dcgan.sample(t)
+        audio = np.reshape(audio, (-1, LENGTH))
+        print("shape is", np.shape(audio))
 
         leaves.append(audio[0::2])
         #print("Stats min/max/mean/stddev", np.min(audio), np.max(audio), np.mean(audio), np.std(audio))
@@ -56,9 +59,10 @@ with tf.Session() as sess:
             print(i)
         i+=1
       print("tree, tr", np.shape(leaves), np.shape(leaves_right), COUNT*batch_size//2, LENGTH)
-      leaves = np.reshape(leaves, [COUNT*batch_size//2, LENGTH])
-      leaves_right = np.reshape(leaves_right, [COUNT*batch_size//2, LENGTH])
+      leaves = np.reshape(leaves, [-1, LENGTH])
+      leaves_right = np.reshape(leaves_right, [-1, LENGTH])
       print("tree, tr", np.shape(leaves), np.shape(leaves_right))
+      scipy.misc.imsave("visualize/output-"+str(i)+".png", leaves[:60])
       tree = hwav.reconstruct_tree(leaves)
       tree_right = hwav.reconstruct_tree(leaves_right)
       samplewav['wavdec']=[tree, tree_right]

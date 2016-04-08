@@ -1,6 +1,7 @@
 import os
 import time
 from glob import glob
+import scipy
 import tensorflow as tf
 
 from ops import *
@@ -10,6 +11,7 @@ import lstm
 import hwav
 
 LENGTH = 20
+Y_DIM = 32
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
@@ -71,13 +73,13 @@ class DCGAN(object):
         self.build_model()
 
     def normalize_wav(self,wav):
-        maxWavValue = 46340
+        maxWavValue = 130000
         wav = (wav+maxWavValue)/(2*maxWavValue)#tf.add(tf.div(wav,(maxWavValue*2)), 0.5)
         return wav
 
     def build_model(self):
 
-        self.wavs = tf.placeholder(tf.float32, [self.batch_size, LENGTH],
+        self.wavs = tf.placeholder(tf.float32, [self.batch_size, LENGTH, Y_DIM],
                                     name='real_wavs')
         self.batch_flatten = self.normalize_wav(tf.reshape(self.wavs, [self.batch_size, -1]))
 
@@ -95,7 +97,7 @@ class DCGAN(object):
 
  
 
-        d_wav = tf.reshape(self.wavs, [self.batch_size, LENGTH])
+        d_wav = tf.reshape(self.wavs, [self.batch_size, LENGTH,Y_DIM])
         self.G = self.generator()
         self.batch_reconstruct_flatten = self.normalize_wav(tf.reshape(self.G, [self.batch_size, -1]))
 
@@ -151,7 +153,7 @@ class DCGAN(object):
       latent_loss = -0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq
                                          - tf.square(self.z_mean)
                                          - tf.exp(self.z_log_sigma_sq), 1)
-      self.vae_loss = tf.reduce_mean(reconstr_loss + latent_loss) / LENGTH # average over batch and pixel
+      self.vae_loss = tf.reduce_mean(reconstr_loss + latent_loss) / LENGTH*Y_DIM # average over batch and pixel
 
     def encode(self, X):
       """Transform data by mapping it into the latent space."""
@@ -221,8 +223,14 @@ class DCGAN(object):
                     batch[0::2]=data_left
                     batch[1::2]=data_right
                     print("LEN IS", len(batch))
-                    for i in range(0, len(batch)-batch_size, batch_size):
-                        yield batch[i:i+batch_size], i/len(batch), 1.0/batch_size
+                    amountNeeded = batch_size * Y_DIM
+                    for i in range(0,len(batch), batch_size * Y_DIM): #  window over the song.  every nn sees every entry. * 2 for left / right speaker
+                        thebatch = batch[i:i+amountNeeded]
+                        #if(i % len(data_left)- 2 == 0):
+                        #  scipy.misc.imsave("visualize/input-"+str(i)+".png", thebatch)
+                        thebatch = np.resize(thebatch, [batch_size, LENGTH, Y_DIM])
+                        
+                        yield [thebatch, i/len(batch), 1.0/batch_size]
                     #except Exception as e:
                     #    print("Could not load ", filee, e)
 
@@ -241,6 +249,7 @@ class DCGAN(object):
                 t *= 0.25*stepsize
                 t += position
                 t *= 20
+                print(position)
 
                 idx+=1
                 #print("Min:", np.min(batch_wavs))
@@ -302,10 +311,10 @@ class DCGAN(object):
                 #print("Batch ", counter)
                 if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
                     print("Saving after next batch")
-                if(errD_fake == 0 or errD_fake > 23 or errG > 23 or errVAE > 2 or np.isnan(errVAE)):
+                if(errD_fake == 0 or errD_fake > 23 or errG > 23 or errVAE > 1000 or np.isnan(errVAE)):
                     diverged_count += 1
                     print("Error rate above threshold")
-                    if(diverged_count > 20):
+                    if(diverged_count > 120):
                         print("Loading from last checkpoint")
                         loaded = self.load(self.checkpoint_dir)
                         diverged_count = 0
@@ -321,7 +330,7 @@ class DCGAN(object):
     def sample(self, t):
         result = self.sess.run(
             self.sampler,
-            feed_dict={self.wavs: np.ones((self.batch_size, LENGTH)),
+            feed_dict={self.wavs: np.ones((self.batch_size, LENGTH, Y_DIM)),
                        self.t: t}
         )
         return result
@@ -330,7 +339,7 @@ class DCGAN(object):
         if reuse:
             tf.get_variable_scope().reuse_variables()
         # convert to 2d - seems to be ok
-        wav_unroll = tf.reshape(wav, [self.batch_size*LENGTH, 1])
+        wav_unroll = tf.reshape(wav, [self.batch_size*LENGTH*Y_DIM, 1])
         depth = 64
         network_size = 4
 
@@ -341,7 +350,7 @@ class DCGAN(object):
           H = tf.nn.tanh(fully_connected(H, network_size, 'd_tanh_'+str(i)))
 
         #output = lstm.generator(self.z, LENGTH)
-        output = tf.sigmoid(fully_connected(H, 1, "d_fc_out"))
+        output = fully_connected(H, 1, "d_fc_out")
 
 
 
@@ -370,12 +379,12 @@ class DCGAN(object):
         
         H = tf.nn.softplus(U)
         for i in range(1, depth):
-          H = tf.nn.tanh(fully_connected(H, network_size//i, 'g_tanh_'+str(i)))
+          H = tf.nn.tanh(fully_connected(H, network_size, 'g_tanh_'+str(i)))
           print("H", H.get_shape())
 
         #output = lstm.generator(self.z, LENGTH)
-        output = fully_connected(H, 1, "g_fc_out")
-        output = tf.reshape(output, [self.batch_size, LENGTH])
+        output = fully_connected(H, Y_DIM, "g_fc_out")
+        output = tf.reshape(output, [self.batch_size, LENGTH,Y_DIM])
         print("OUTPUT LEN", output.get_shape())
 
         return tensorflow_wav.scale_up(output)
