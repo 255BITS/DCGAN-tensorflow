@@ -11,7 +11,7 @@ import lstm
 import hwav
 
 LENGTH = 20
-Y_DIM = 32
+Y_DIM = 32*32*2
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
@@ -39,7 +39,7 @@ class DCGAN(object):
         self.t_dim = t_dim
 
         self.net_size_q=512
-        self.keep_prob = 0.9
+        self.keep_prob = 0.3
         self.y_dim = y_dim
         self.z_dim = z_dim
 
@@ -79,7 +79,7 @@ class DCGAN(object):
 
     def build_model(self):
 
-        self.wavs = tf.placeholder(tf.float32, [self.batch_size, LENGTH, Y_DIM],
+        self.wavs = tf.placeholder(tf.float32, [self.batch_size, Y_DIM, LENGTH],
                                     name='real_wavs')
         self.batch_flatten = self.normalize_wav(tf.reshape(self.wavs, [self.batch_size, -1]))
 
@@ -97,7 +97,7 @@ class DCGAN(object):
 
  
 
-        d_wav = tf.reshape(self.wavs, [self.batch_size, LENGTH,Y_DIM])
+        d_wav = tf.reshape(self.wavs, [self.batch_size, Y_DIM, LENGTH])
         self.G = self.generator()
         self.batch_reconstruct_flatten = self.normalize_wav(tf.reshape(self.G, [self.batch_size, -1]))
 
@@ -153,7 +153,7 @@ class DCGAN(object):
       latent_loss = -0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq
                                          - tf.square(self.z_mean)
                                          - tf.exp(self.z_log_sigma_sq), 1)
-      self.vae_loss = tf.reduce_mean(reconstr_loss + latent_loss) / LENGTH*Y_DIM # average over batch and pixel
+      self.vae_loss = tf.reduce_mean(reconstr_loss + latent_loss) / (LENGTH*Y_DIM) # average over batch and pixel
 
     def encode(self, X):
       """Transform data by mapping it into the latent space."""
@@ -176,7 +176,6 @@ class DCGAN(object):
     def train(self, config):
         """Train DCGAN"""
         data = glob(os.path.join("./training", "*.mlaudio"))
-        print(data)
 
         #print('g_vars', [shape.get_shape() for shape in self.g_vars])
         #print('d_vars', [shape.get_shape() for shape in self.d_vars])
@@ -212,27 +211,28 @@ class DCGAN(object):
             def get_wav_content(files, batch_size):
                 for filee in files:
                     print("Yielding ", filee)
-                    #try:
+                    try:
 
-                    mlaudio = tensorflow_wav.get_pre(filee)
-                    left, right = mlaudio['wavdec']
-                    data_left = hwav.leaves_from(left)
-                    data_right = hwav.leaves_from(right)
+                        mlaudio = tensorflow_wav.get_pre(filee)
+                        left, right = mlaudio['wavdec']
+                        data_left = hwav.leaves_from(left)
+                        data_right = hwav.leaves_from(right)
 
-                    batch = np.empty(len(data_left) + len(data_right)).tolist()
-                    batch[0::2]=data_left
-                    batch[1::2]=data_right
-                    print("LEN IS", len(batch))
-                    amountNeeded = batch_size * Y_DIM
-                    for i in range(0,len(batch), batch_size * Y_DIM): #  window over the song.  every nn sees every entry. * 2 for left / right speaker
-                        thebatch = batch[i:i+amountNeeded]
-                        #if(i % len(data_left)- 2 == 0):
-                        #  scipy.misc.imsave("visualize/input-"+str(i)+".png", thebatch)
-                        thebatch = np.resize(thebatch, [batch_size, LENGTH, Y_DIM])
-                        
-                        yield [thebatch, i/len(batch), 1.0/batch_size]
-                    #except Exception as e:
-                    #    print("Could not load ", filee, e)
+                        batch = np.empty(len(data_left) + len(data_right)).tolist()
+                        batch[0::2]=data_left
+                        batch[1::2]=data_right
+                        print("LEN IS", len(batch))
+                        #scipy.misc.imsave("visualize/input-full.png", data_left[:Y_DIM])
+                        splitInto = 32#32 segments
+                        amountNeeded = batch_size * Y_DIM
+                        for i in range(0,len(batch)-amountNeeded, batch_size * Y_DIM//splitInto): #  window over the song.  every nn sees every entry. * 2 for left / right speaker
+                            thebatch = np.array(batch[i:i+amountNeeded])
+                            thebatch = np.reshape(thebatch, [batch_size, Y_DIM, LENGTH])
+                            #scipy.misc.imsave("visualize/input-"+str(i)+".png", thebatch[0][0::2])
+                            
+                            yield [thebatch, i/len(batch), 1.0/batch_size]
+                    except Exception as e:
+                        print("Could not load ", filee, e)
 
             #print(batch)
             idx=0
@@ -290,13 +290,15 @@ class DCGAN(object):
                 errG = self.g_loss.eval({self.t: t, self.wavs: batch_wavs})
                 errVAE = self.vae_loss.eval({self.t: t, self.wavs: batch_wavs})
                 rG = self.G.eval({self.t: t, self.wavs: batch_wavs})
+                rZ = self.z.eval({self.t: t, self.wavs: batch_wavs})
+
                 #H4 = self.h4.eval({self.wavs: batch_wavs})
                 #bf = self.batch_flatten.eval({self.wavs: batch_wavs})
                 #brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
                 #z = self.z.eval({self.wavs: batch_wavs})
 
                 #print("H4", np.min(H4), np.max(H4))
-                #print("z", np.min(z), np.max(z))
+                print("z", np.min(rZ), np.max(rZ))
                 #print("bf", np.min(bf), np.max(bf))
                 #print("brf", np.min(brf), np.max(brf))
                 print("rG", np.min(rG), np.max(rG))
@@ -308,13 +310,26 @@ class DCGAN(object):
 
                 SAVE_COUNT=300
                 
+                SAMPLE_COUNT=100
+                if np.mod(counter, SAMPLE_COUNT) == SAMPLE_COUNT-3:
+                    stepsize = 0.03125
+                    position = 0.0
+                    t = self.coordinates(self.t_dim)
+                    t = np.array(t, dtype=np.float32)
+                    t *= 0.5*stepsize
+                    t += position
+                    t *= 20
+                    audio = self.sample(t)
+                    audio = np.reshape(audio[0::2], (-1, LENGTH))
+                    audio = audio[:128]
+                    scipy.misc.imsave("visualize/samples-%08d.png" % counter, audio[0::2][:Y_DIM])
                 #print("Batch ", counter)
                 if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
                     print("Saving after next batch")
-                if(errD_fake == 0 or errD_fake > 23 or errG > 23 or errVAE > 1000 or np.isnan(errVAE)):
+                if(np.isnan(errVAE)):
                     diverged_count += 1
                     print("Error rate above threshold")
-                    if(diverged_count > 120):
+                    if(diverged_count > 1):
                         print("Loading from last checkpoint")
                         loaded = self.load(self.checkpoint_dir)
                         diverged_count = 0
@@ -328,9 +343,12 @@ class DCGAN(object):
 
 
     def sample(self, t):
+        np.random.seed(42)
+        wavs = (np.random.uniform(-1,1.0,(self.batch_size, Y_DIM, LENGTH))*40000)
+        #wavs = np.ones((self.batch_size, Y_DIM, LENGTH)) * 40000
         result = self.sess.run(
             self.sampler,
-            feed_dict={self.wavs: np.ones((self.batch_size, LENGTH, Y_DIM)),
+            feed_dict={self.wavs: wavs ,
                        self.t: t}
         )
         return result
@@ -338,19 +356,24 @@ class DCGAN(object):
     def discriminator(self, wav, reuse=False, y=None):
         if reuse:
             tf.get_variable_scope().reuse_variables()
-        # convert to 2d - seems to be ok
-        wav_unroll = tf.reshape(wav, [self.batch_size*LENGTH*Y_DIM, 1])
-        depth = 64
-        network_size = 4
+        depth = 4
+        network_size = 64
+        wav_unroll = tf.reshape(wav, [self.batch_size, Y_DIM*LENGTH])
 
         U = fully_connected(wav_unroll, network_size, 'd_0_wav')
+        print("D U ", U.get_shape())
         
         H = tf.nn.softplus(U)
+
+        H = tf.nn.dropout(H, self.keep_prob)
         for i in range(1, depth):
           H = tf.nn.tanh(fully_connected(H, network_size, 'd_tanh_'+str(i)))
+          H = tf.nn.dropout(H, self.keep_prob)
+          print("D H ", H.get_shape())
 
-        #output = lstm.generator(self.z, LENGTH)
-        output = fully_connected(H, 1, "d_fc_out")
+        #output = lstm.enerator(self.z, LENGTH)
+        output = linear(H, 1, "d_fc_out")
+        print("D OUT", output.get_shape())
 
 
 
@@ -363,14 +386,14 @@ class DCGAN(object):
     def build_generator(self,is_generator):
         if(not is_generator):
             tf.get_variable_scope().reuse_variables()
-        network_size = 256
+        network_size = 128
         scale = 10.0
         depth = 4
 
         z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * \
                         tf.ones([LENGTH, 1], dtype=tf.float32) * scale
-        z_unroll = tf.reshape(z_scaled, [self.batch_size*LENGTH, self.z_dim])
-        t_unroll = tf.reshape(self.t, [self.batch_size*self.t_dim, 1])
+        z_unroll = tf.reshape(z_scaled, [self.batch_size, LENGTH*self.z_dim])
+        t_unroll = tf.reshape(self.t, [self.batch_size, self.t_dim])
 
         U = fully_connected(z_unroll, network_size, 'g_0_z') + \
             fully_connected(t_unroll, network_size, 'g_0_t', with_bias = False) 
@@ -378,13 +401,15 @@ class DCGAN(object):
         print("U", U.get_shape())
         
         H = tf.nn.softplus(U)
+        H = tf.nn.dropout(H, self.keep_prob)
         for i in range(1, depth):
           H = tf.nn.tanh(fully_connected(H, network_size, 'g_tanh_'+str(i)))
+          H = tf.nn.dropout(H, self.keep_prob)
           print("H", H.get_shape())
 
         #output = lstm.generator(self.z, LENGTH)
-        output = fully_connected(H, Y_DIM, "g_fc_out")
-        output = tf.reshape(output, [self.batch_size, LENGTH,Y_DIM])
+        output = linear(H, Y_DIM*LENGTH, "g_fc_out")
+        output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
         print("OUTPUT LEN", output.get_shape())
 
         return tensorflow_wav.scale_up(output)

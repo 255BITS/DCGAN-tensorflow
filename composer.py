@@ -10,14 +10,14 @@ import hwav
 import tensorflow_wav
 
 
-dataset="wavelet-4"
-batch_size=512
+dataset="wavelet-13-dropout"
+batch_size=32
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 z_dim=64
 
 LENGTH=20
-Y_DIM=32
+Y_DIM=32*32*2
 
 COUNT=131072//(batch_size*Y_DIM/2.0)
 
@@ -59,6 +59,7 @@ with tf.Session() as sess:
             print(i)
         i+=1
       print("tree, tr", np.shape(leaves), np.shape(leaves_right), COUNT*batch_size//2, LENGTH)
+      #scipy.misc.imsave("visualize/output-t-"+str(i)+".png", leaves[:1])
       leaves = np.reshape(leaves, [-1, LENGTH])
       leaves_right = np.reshape(leaves_right, [-1, LENGTH])
       print("tree, tr", np.shape(leaves), np.shape(leaves_right))
