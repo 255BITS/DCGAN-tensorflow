@@ -221,11 +221,14 @@ class DCGAN(object):
                         batch = np.empty(len(data_left) + len(data_right)).tolist()
                         batch[0::2]=data_left
                         batch[1::2]=data_right
-                        print("LEN IS", len(batch))
+                        batch = np.array([b[:LENGTH] for b in batch])
                         #scipy.misc.imsave("visualize/input-full.png", data_left[:Y_DIM])
                         splitInto = 32#32 segments
                         amountNeeded = batch_size * Y_DIM
                         for i in range(0,len(batch)-amountNeeded, batch_size * Y_DIM//splitInto): #  window over the song.  every nn sees every entry. * 2 for left / right speaker
+                            if(batch[i][LENGTH-1] == 0.0):
+                               print("reached end of file?")
+                               next
                             thebatch = np.array(batch[i:i+amountNeeded])
                             thebatch = np.reshape(thebatch, [batch_size, Y_DIM, LENGTH])
                             #scipy.misc.imsave("visualize/input-"+str(i)+".png", thebatch[0][0::2])

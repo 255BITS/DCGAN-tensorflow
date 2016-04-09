@@ -60,6 +60,16 @@ def resize_multiple(data, multiple):
     by = len(data)//multiple
     data = data[:by*multiple]
     return data
+
+def padded_wavedec(data, mode):
+    converted = pywt.wavedec(data, mode)
+    for i in range(0, len(converted)):
+        converted[i] = padzeros(2**i, converted[i])
+    return converted
+
+
+
+
 def preprocess(output_file):
     wav = tensorflow_wav.get_wav(output_file)
 
@@ -67,7 +77,7 @@ def preprocess(output_file):
     #raw = raw[:int(raw.shape[0]/BITRATE)*BITRATE]
     #raw = np.reshape(raw, [-1, WAV_X])
     #mdct = [do_mdct(row) for row in raw]
-    length = BITRATE*32
+    length = -1
     if(len(wav['data'].shape) > 1):
         data = wav['data'][:length, 0]
         data_right = wav['data'][:length, 1]
@@ -77,8 +87,10 @@ def preprocess(output_file):
         data_right = wav['data'][:length]
 
     mode = 'db1'
-    wavdec  = pywt.wavedec(data, mode)
-    wavdec_right  = pywt.wavedec(data_right, mode)
+    wavdec  = padded_wavedec(data, mode)
+    pywt.wavedec(data, mode)
+    wavdec_right  = padded_wavedec(data, mode)
+    pywt.wavedec(data_right, mode)
 
     wav['wavdec']=  [wavdec, wavdec_right]
     print("Data is of the form", np.shape(wav['wavdec']))
@@ -122,20 +134,30 @@ def sanity_test(input_wav):
     outfile = input_wav+".sanity.wav"
     tensorflow_wav.save_wav(out, outfile)
 
+def padzeros(total, a):
+    zs = total-len(a)
+    rest = []
+    if(zs > 0):
+        rest = np.zeros(zs).tolist()
+    return a.tolist()+ rest
+
+
+
 def insanity_test(input_wav):
 
     wav = tensorflow_wav.get_wav(input_wav)
-    wavdata = wav['data'][:8192*8*4]
+    wavdata = wav['data']
 
     mode = 'db1'
     converted = pywt.wavedec(np.reshape(wavdata, [-1]), mode)
+    print("converted", np.shape(converted))
 
     sum=0
     for i in range(0, len(converted)):
         sum+=len(converted[i])
-        print(i, len(converted[i]), sum)
-        if( i > 9 ):
+        if( i > 19 ):
             converted[i] = np.zeros(len(converted[i]))
+        converted[i] = padzeros(2**i, converted[i])
     converted_data = pywt.waverec(converted, mode)
 
     wav['data'] = converted_data
