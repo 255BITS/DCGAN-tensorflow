@@ -65,7 +65,11 @@ def resize_multiple(data, multiple):
 def padded_wavedec(data, mode):
     converted = pywt.wavedec(data, mode)
     for i in range(0, len(converted)):
+<<<<<<< 9914a38b6d7a366be9465fe452749eb255919754
       converted[i] = padzeros(2**(i-1), converted[i])
+=======
+        converted[i] = padzeros(2**i, converted[i])
+>>>>>>> [feature] convert_to_data rounds everything to powers of two.
     return converted
 
 
@@ -78,7 +82,11 @@ def preprocess(output_file):
     #raw = raw[:int(raw.shape[0]/BITRATE)*BITRATE]
     #raw = np.reshape(raw, [-1, WAV_X])
     #mdct = [do_mdct(row) for row in raw]
+<<<<<<< 9914a38b6d7a366be9465fe452749eb255919754
     length = BITRATE*64*2
+=======
+    length = -1
+>>>>>>> [feature] convert_to_data rounds everything to powers of two.
     if(len(wav['data'].shape) > 1):
         wav_data = np.array(wav['data'][:-1, 0])
         wav_data_right = np.array(wav['data'][:-1, 1])
@@ -90,11 +98,19 @@ def preprocess(output_file):
         data_right = wav_data_right[i*length:(i+1)*length]
         print("data len", len(data), "wavedata", len(wav_data))
 
+<<<<<<< 9914a38b6d7a366be9465fe452749eb255919754
         mode = 'db1'
         wavdec  = padded_wavedec(data, mode)
         pywt.wavedec(data, mode)
         wavdec_right  = padded_wavedec(data, mode)
         pywt.wavedec(data_right, mode)
+=======
+    mode = 'db1'
+    wavdec  = padded_wavedec(data, mode)
+    pywt.wavedec(data, mode)
+    wavdec_right  = padded_wavedec(data, mode)
+    pywt.wavedec(data_right, mode)
+>>>>>>> [feature] convert_to_data rounds everything to powers of two.
 
         wav['wavdec']=  [wavdec, wavdec_right]
         print("Data is of the form", np.shape(wav['wavdec']))
@@ -150,8 +166,7 @@ def padzeros(total, a):
 def insanity_test(input_wav):
 
     wav = tensorflow_wav.get_wav(input_wav)
-    wavdata = wav['data'][:2**21]
-    print("len", len(wavdata))
+    wavdata = wav['data']
 
     mode = 'db1'
     converted = pywt.wavedec(np.reshape(wavdata, [-1]), mode)
@@ -160,7 +175,6 @@ def insanity_test(input_wav):
     sum=0
     for i in range(0, len(converted)):
         sum+=len(converted[i])
-        print(len(converted[i]))
         if( i > 19 ):
             converted[i] = np.zeros(len(converted[i]))
         converted[i] = padzeros(2**i, converted[i])
