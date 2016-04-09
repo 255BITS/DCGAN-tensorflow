@@ -8,6 +8,7 @@ import scipy.fftpack
 import argparse
 import mdct
 import pywt
+import math
 
 
 if __name__ == '__main__':
@@ -17,7 +18,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     print(args)
-BITRATE = 8192
+BITRATE = 4096
 
 def do(command):
     print("Running " + command)
@@ -64,7 +65,7 @@ def resize_multiple(data, multiple):
 def padded_wavedec(data, mode):
     converted = pywt.wavedec(data, mode)
     for i in range(0, len(converted)):
-        converted[i] = padzeros(2**i, converted[i])
+      converted[i] = padzeros(2**(i-1), converted[i])
     return converted
 
 
@@ -77,25 +78,28 @@ def preprocess(output_file):
     #raw = raw[:int(raw.shape[0]/BITRATE)*BITRATE]
     #raw = np.reshape(raw, [-1, WAV_X])
     #mdct = [do_mdct(row) for row in raw]
-    length = -1
+    length = BITRATE*64*2
     if(len(wav['data'].shape) > 1):
-        data = wav['data'][:length, 0]
-        data_right = wav['data'][:length, 1]
+        wav_data = np.array(wav['data'][:-1, 0])
+        wav_data_right = np.array(wav['data'][:-1, 1])
     else:
         raise("MONO NOT SUPPORTED")
-        data = wav['data'][:length]
-        data_right = wav['data'][:length]
+    i = 0
+    for i in range(len(wav_data)//length):
+        data = wav_data[i*length:(i+1)*length]
+        data_right = wav_data_right[i*length:(i+1)*length]
+        print("data len", len(data), "wavedata", len(wav_data))
 
-    mode = 'db1'
-    wavdec  = padded_wavedec(data, mode)
-    pywt.wavedec(data, mode)
-    wavdec_right  = padded_wavedec(data, mode)
-    pywt.wavedec(data_right, mode)
+        mode = 'db1'
+        wavdec  = padded_wavedec(data, mode)
+        pywt.wavedec(data, mode)
+        wavdec_right  = padded_wavedec(data, mode)
+        pywt.wavedec(data_right, mode)
 
-    wav['wavdec']=  [wavdec, wavdec_right]
-    print("Data is of the form", np.shape(wav['wavdec']))
-    tensorflow_wav.save_pre(wav, output_file+".mlaudio")
-    #audio = wav['data']
+        wav['wavdec']=  [wavdec, wavdec_right]
+        print("Data is of the form", np.shape(wav['wavdec']))
+        tensorflow_wav.save_pre(wav, output_file+str("%05d"%i)+".mlaudio")
+        #audio = wav['data']
 
 
 def add_to_training(dir):
@@ -146,7 +150,8 @@ def padzeros(total, a):
 def insanity_test(input_wav):
 
     wav = tensorflow_wav.get_wav(input_wav)
-    wavdata = wav['data']
+    wavdata = wav['data'][:2**21]
+    print("len", len(wavdata))
 
     mode = 'db1'
     converted = pywt.wavedec(np.reshape(wavdata, [-1]), mode)
@@ -155,6 +160,7 @@ def insanity_test(input_wav):
     sum=0
     for i in range(0, len(converted)):
         sum+=len(converted[i])
+        print(len(converted[i]))
         if( i > 19 ):
             converted[i] = np.zeros(len(converted[i]))
         converted[i] = padzeros(2**i, converted[i])
@@ -177,8 +183,8 @@ if __name__ == '__main__':
         #add_to_training("datasets/youtube-drums-2)
         #add_to_training("datasets/youtube-drums-3")
         #add_to_training('datasets/drums2')
-        add_to_training('datasets/youtube-drums-1')
-        add_to_training('datasets/youtube-drums-2')
+        #add_to_training('datasets/youtube-drums-1')
+        #add_to_training('datasets/youtube-drums-2')
         add_to_training('datasets/youtube-drums-120bpm-1')
         #add_to_training('datasets/videogame')
 
