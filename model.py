@@ -11,7 +11,7 @@ import lstm
 import hwav
 
 LENGTH = 20
-Y_DIM = 32*8
+Y_DIM = 32*16
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
@@ -380,9 +380,10 @@ class DCGAN(object):
         H = tf.reshape(H, [self.batch_size, -1])
         for i in range(1, depth):
           H = tf.nn.tanh(fully_connected(H, network_size, 'd_tanh_'+str(i)))
+          H = tf.nn.dropout(H, self.keep_prob)
         #  print("D H ", H.get_shape())
         output = H
-        disc = lstm.discriminator(output, 1, 'd_lstm')
+        #disc = lstm.discriminator(output, 1, 'd_lstm')
         #output = linear(output, 128, "d_lstm_in")
         #output = tf.nn.tanh(lstm.discriminator(output, network_size, 'd_lstm0'))
         #output = lstm.enerator(self.z, LENGTH)
@@ -391,7 +392,7 @@ class DCGAN(object):
 
 
 
-        return tf.nn.sigmoid(output + disc )
+        return tf.nn.sigmoid(output)
 
 
     def generator(self, y=None):
@@ -400,8 +401,8 @@ class DCGAN(object):
     def build_generator(self,is_generator):
         if(not is_generator):
             tf.get_variable_scope().reuse_variables()
-        network_size = 128
-        scale = 3.0
+        network_size = 256
+        scale = 1.0
         depth = 4
 
 
@@ -409,21 +410,20 @@ class DCGAN(object):
                         tf.ones([LENGTH, 1], dtype=tf.float32) #* scale
 
         z_unroll = tf.reshape(z_scaled, [self.batch_size, LENGTH*self.z_dim])
-        l_unroll = lstm.generator(z_unroll, LENGTH*self.z_dim)
+        #l_unroll = lstm.generator(z_unroll, LENGTH*self.z_dim)
         t_unroll = tf.reshape(self.t, [self.batch_size, self.t_dim])
 
         U = fully_connected(z_unroll*scale, network_size, 'g_0_z') + \
-            fully_connected(t_unroll, network_size, 'g_0_t', with_bias = False)  + \
-            fully_connected(l_unroll, network_size, 'g_0_l', with_bias = False)
+            fully_connected(t_unroll, network_size, 'g_0_t', with_bias = False) 
+            #fully_connected(l_unroll, network_size, 'g_0_l', with_bias = False)
 
         print("U", U.get_shape())
         
-        H = tf.nn.relu(U)
+        H = tf.nn.softplus(U)
         #H = tf.nn.tanh(lstm.generator(H, H.get_shape()[1], 'g_lstm1'))
-        H = tf.nn.dropout(H, self.keep_prob)
         #H = tf.reshape(H, [self.batch_size, 16, 16, 1])
-        #H = conv2d(H, c3_dim, name="g_conv3")
         #print("SIZe of H", H)
+        H = tf.nn.dropout(H, self.keep_prob)
         for i in range(1, depth):
           H = tf.nn.tanh(fully_connected(H, network_size, 'g_tanh_'+str(i)))
           H = tf.nn.dropout(H, self.keep_prob)
@@ -432,10 +432,17 @@ class DCGAN(object):
         output = H
         #output = tf.nn.tanh(lstm.generator(output, network_size, 'g_lstm2'))
         #output = tf.nn.tanh(lstm.generator(output, network_size, 'g_lstm3'))
-        #output = tf.reshape(output, [self.batch_size, 4, 4, 4])
-        #output = lrelu(deconv2d(output, [self.batch_size, 8, 8, 2], name='g_d_1'))
-        #output = lrelu(deconv2d(output, [self.batch_size, 16, 16, 1], name='g_d_2'))
+        #output = linear(self.z, 4*4*16, 'g_lin_0')
+        #output = tf.reshape(output, [self.batch_size, 4, 4, 16])
+        #output = lrelu(deconv2d(output, [self.batch_size, 8, 8, 8], name='g_d_1'))
+        #output = self.g_bn0(output)
+        #output = lrelu(deconv2d(output, [self.batch_size, 16, 16, 4], name='g_d_2'))
+        #output = self.g_bn1(output)
         #output = lrelu(deconv2d(output, [self.batch_size, 32, 32, 2], name='g_d_3'))
+        #output = self.g_bn2(output)
+        #output = lrelu(deconv2d(output, [self.batch_size, 64, 64, 1], name='g_d_4'))
+        #output = self.g_bn3(output)
+        #H = conv2d(H, c3_dim, name="g_conv3")
         #output = tf.reshape(output, [self.batch_size, -1])
 
         output = linear(output, Y_DIM*LENGTH, "g_fc_out")
