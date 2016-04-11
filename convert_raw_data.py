@@ -65,11 +65,7 @@ def resize_multiple(data, multiple):
 def padded_wavedec(data, mode):
     converted = pywt.wavedec(data, mode)
     for i in range(0, len(converted)):
-<<<<<<< 9914a38b6d7a366be9465fe452749eb255919754
-      converted[i] = padzeros(2**(i-1), converted[i])
-=======
-        converted[i] = padzeros(2**i, converted[i])
->>>>>>> [feature] convert_to_data rounds everything to powers of two.
+      converted[i] = padzeros(2**i, converted[i])
     return converted
 
 
