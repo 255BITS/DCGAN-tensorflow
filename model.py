@@ -358,6 +358,7 @@ class DCGAN(object):
             tf.get_variable_scope().reuse_variables()
         depth = 2
         network_size = 8*8
+        wav = tf.nn.dropout(wav, self.keep_prob)
         wav_unroll = tf.reshape(wav, [self.batch_size, Y_DIM*LENGTH])
 
         U = fully_connected(wav_unroll, network_size, 'd_0_wav')
