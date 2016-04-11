@@ -11,7 +11,7 @@ import lstm
 import hwav
 
 LENGTH = 20
-Y_DIM = 32*16
+Y_DIM = 4096
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
@@ -39,7 +39,7 @@ class DCGAN(object):
         self.t_dim = t_dim
 
         self.net_size_q=512
-        self.keep_prob = 0.3
+        self.keep_prob = 0.6
         self.y_dim = y_dim
         self.z_dim = z_dim
 
@@ -166,8 +166,8 @@ class DCGAN(object):
       # Generate probabilistic encoder (recognition network), which
       # maps inputs onto a normal distribution in latent space.
       # The transformation is parametrized and can be learned.
-      H1 = tf.nn.dropout(tf.nn.softplus(linear(self.batch_flatten, self.net_size_q, 'vae_q_lin1')), self.keep_prob)
-      H2 = tf.nn.dropout(tf.nn.softplus(linear(H1, self.net_size_q, 'vae_q_lin2')), self.keep_prob)
+      H1 = tf.nn.dropout(tf.nn.softplus(linear(self.batch_flatten, self.net_size_q, 'vae_q_lin1')), self.keep_prob**2)
+      H2 = tf.nn.dropout(tf.nn.softplus(linear(H1, self.net_size_q, 'vae_q_lin2')), self.keep_prob**2)
       z_mean = linear(H2, self.z_dim, 'vae_q_lin3_mean')
       z_log_sigma_sq = linear(H2, self.z_dim, 'vae_q_lin3_log_sigma_sq')
       return (z_mean, z_log_sigma_sq)
@@ -231,7 +231,7 @@ class DCGAN(object):
                                next
                             thebatch = np.array(batch[i:i+amountNeeded])
                             thebatch = np.reshape(thebatch, [batch_size, Y_DIM, LENGTH])
-                            scipy.misc.imsave("visualize/input-"+str(i)+".png", thebatch[0][0::2])
+                            #scipy.misc.imsave("visualize/input-"+str(i)+".png", thebatch[0][0::2])
                             
                             yield [thebatch, i/len(batch), 1.0/batch_size]
                     except Exception as e:
@@ -359,7 +359,7 @@ class DCGAN(object):
     def discriminator(self, wav, reuse=False, y=None):
         if reuse:
             tf.get_variable_scope().reuse_variables()
-        depth = 2
+        depth = 4
         network_size = 8*8
         wav_unroll = tf.reshape(wav, [self.batch_size, Y_DIM*LENGTH])
 
@@ -372,11 +372,13 @@ class DCGAN(object):
         c2_dim=64
         c3_dim=128
         #H = wav
-        H = tf.nn.dropout(H, self.keep_prob)
+        H = tf.nn.dropout(H, self.keep_prob**2)
         H =  tf.reshape(H, [self.batch_size, 8,8,1])
         H = tf.nn.relu(conv2d(H, c1_dim, name="d_conv1", k_w=5, k_h=5, d_h=1, d_w=1))
-        H = tf.nn.tanh(conv2d(H, c2_dim, name="d_conv2", k_w=5, k_h=5))
-        #H = tf.nn.relu(conv2d(H, c3_dim, name="d_conv3", k_w=3, k_h=3))
+        H = tf.nn.dropout(H, self.keep_prob**2)
+        H = tf.nn.relu(conv2d(H, c2_dim, name="d_conv2", k_w=5, k_h=5))
+        H = tf.nn.dropout(H, self.keep_prob)
+        H = tf.nn.relu(conv2d(H, c3_dim, name="d_conv3", k_w=3, k_h=3))
         H = tf.reshape(H, [self.batch_size, -1])
         for i in range(1, depth):
           H = tf.nn.tanh(fully_connected(H, network_size, 'd_tanh_'+str(i)))
@@ -417,38 +419,36 @@ class DCGAN(object):
             fully_connected(t_unroll, network_size, 'g_0_t', with_bias = False) 
             #fully_connected(l_unroll, network_size, 'g_0_l', with_bias = False)
 
-        print("U", U.get_shape())
         
         H = tf.nn.softplus(U)
-        #H = tf.nn.tanh(lstm.generator(H, H.get_shape()[1], 'g_lstm1'))
-        #H = tf.reshape(H, [self.batch_size, 16, 16, 1])
-        #print("SIZe of H", H)
-        H = tf.nn.dropout(H, self.keep_prob)
-        for i in range(1, depth):
-          H = tf.nn.tanh(fully_connected(H, network_size, 'g_tanh_'+str(i)))
-          H = tf.nn.dropout(H, self.keep_prob)
-          #print("H", H.get_shape())
+        print("H ", H)
 
-        output = H
-        #output = tf.nn.tanh(lstm.generator(output, network_size, 'g_lstm2'))
-        #output = tf.nn.tanh(lstm.generator(output, network_size, 'g_lstm3'))
-        #output = linear(self.z, 4*4*16, 'g_lin_0')
-        #output = tf.reshape(output, [self.batch_size, 4, 4, 16])
-        #output = lrelu(deconv2d(output, [self.batch_size, 8, 8, 8], name='g_d_1'))
-        #output = self.g_bn0(output)
-        #output = lrelu(deconv2d(output, [self.batch_size, 16, 16, 4], name='g_d_2'))
-        #output = self.g_bn1(output)
-        #output = lrelu(deconv2d(output, [self.batch_size, 32, 32, 2], name='g_d_3'))
-        #output = self.g_bn2(output)
-        #output = lrelu(deconv2d(output, [self.batch_size, 64, 64, 1], name='g_d_4'))
-        #output = self.g_bn3(output)
-        #H = conv2d(H, c3_dim, name="g_conv3")
-        #output = tf.reshape(output, [self.batch_size, -1])
+        x = LENGTH
+        y = Y_DIM
 
-        output = linear(output, Y_DIM*LENGTH, "g_fc_out")
+        p = 4
+
+        output = linear(H, p*p*(p*4), 'g_lin_0')
+        output = tf.reshape(output, [self.batch_size, p, p, p*4])
+        output = lrelu(deconv2d(output, [self.batch_size, p*2, p*2, p*2], name='g_d_1'))
+        output = tf.nn.dropout(output, self.keep_prob)
+        output = self.g_bn0(output)
+        output = lrelu(deconv2d(output, [self.batch_size, p*4, p*4, p], name='g_d_2'))
+        output = self.g_bn1(output)
+        output = lrelu(deconv2d(output, [self.batch_size, p*8, p*8, p//2], name='g_d_3'))
+        output = self.g_bn2(output)
+        output = lrelu(deconv2d(output, [self.batch_size, p*16, p*16, p//4], name='g_d_4'))
+        output = tf.nn.dropout(output, self.keep_prob)
+        output = self.g_bn3(output)
+        output = tf.reshape(output, [self.batch_size, -1])
+
+        output = fully_connected(output, network_size, "g_fc_out")
+        output = tf.nn.tanh(output)
+        output = tf.nn.sigmoid(output)
+
+        output = fully_connected(output, Y_DIM*LENGTH, "g_fc_out2")
         #output = tf.nn.tanh(lstm.generator(output, Y_DIM*LENGTH, 'g_lstm4'))
         output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
-        print("OUTPUT LEN", output.get_shape())
 
         return tensorflow_wav.scale_up(output)
 

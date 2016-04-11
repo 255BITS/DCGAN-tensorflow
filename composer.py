@@ -10,14 +10,14 @@ import hwav
 import tensorflow_wav
 
 
-dataset="wavelet-tree-conv"
-batch_size=64
+dataset="wavelet-27-dropout"
+batch_size=32
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 z_dim=64
 
 LENGTH=20
-Y_DIM=32*16
+Y_DIM=4096
 
 COUNT=131072//(batch_size*Y_DIM/2.0)
 
