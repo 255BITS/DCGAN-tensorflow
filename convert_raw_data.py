@@ -78,11 +78,7 @@ def preprocess(output_file):
     #raw = raw[:int(raw.shape[0]/BITRATE)*BITRATE]
     #raw = np.reshape(raw, [-1, WAV_X])
     #mdct = [do_mdct(row) for row in raw]
-<<<<<<< 9914a38b6d7a366be9465fe452749eb255919754
     length = BITRATE*64*2
-=======
-    length = -1
->>>>>>> [feature] convert_to_data rounds everything to powers of two.
     if(len(wav['data'].shape) > 1):
         wav_data = np.array(wav['data'][:-1, 0])
         wav_data_right = np.array(wav['data'][:-1, 1])
@@ -94,19 +90,11 @@ def preprocess(output_file):
         data_right = wav_data_right[i*length:(i+1)*length]
         print("data len", len(data), "wavedata", len(wav_data))
 
-<<<<<<< 9914a38b6d7a366be9465fe452749eb255919754
         mode = 'db1'
         wavdec  = padded_wavedec(data, mode)
         pywt.wavedec(data, mode)
         wavdec_right  = padded_wavedec(data, mode)
         pywt.wavedec(data_right, mode)
-=======
-    mode = 'db1'
-    wavdec  = padded_wavedec(data, mode)
-    pywt.wavedec(data, mode)
-    wavdec_right  = padded_wavedec(data, mode)
-    pywt.wavedec(data_right, mode)
->>>>>>> [feature] convert_to_data rounds everything to powers of two.
 
         wav['wavdec']=  [wavdec, wavdec_right]
         print("Data is of the form", np.shape(wav['wavdec']))
