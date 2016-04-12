@@ -57,7 +57,7 @@ def conv_cond_concat(x, y):
     return tf.concat(3, [x, y*tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])])
 
 def conv2d(input_, output_dim, 
-        k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.3, padding='SAME',
+        k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, padding='SAME',
         name="conv2d"):
     with tf.variable_scope(name):
         w = tf.get_variable('w', [k_h, k_w, input_.get_shape()[-1], output_dim],
@@ -70,7 +70,7 @@ def conv2d(input_, output_dim,
         return conv
 
 def deconv2d(input_, output_shape,
-        k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.3, biasstart=0.0,
+        k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, biasstart=0.0,
         name="deconv2d", with_w=False, no_bias=False):
     with tf.variable_scope(name):
         # filter : [height, width, output_channels, in_channels]
@@ -104,7 +104,7 @@ def lrelu(x, leak=0.2, name="lrelu"):
         f2 = 0.5 * (1 - leak)
         return f1 * x + f2 * abs(x)
 
-def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.5, with_w=False):
+def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=False):
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "Linear"):
@@ -117,7 +117,7 @@ def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.5, with_w=
         else:
             return tf.matmul(input_, matrix) + bias
 
-def fully_connected(input_, output_size, scope=None, stddev=0.1, with_bias = True):
+def fully_connected(input_, output_size, scope=None, stddev=0.02, with_bias = True, bias_start=0.0):
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "FC"):
@@ -128,7 +128,8 @@ def fully_connected(input_, output_size, scope=None, stddev=0.1, with_bias = Tru
 
         if with_bias:
             bias = tf.get_variable("bias", [1, output_size],
-                initializer=tf.random_normal_initializer(stddev=stddev))
+                initializer=tf.constant_initializer(bias_start))
             result += bias*tf.ones([shape[0], 1], dtype=tf.float32)
 
         return result
+

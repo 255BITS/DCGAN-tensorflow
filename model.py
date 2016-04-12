@@ -39,7 +39,7 @@ class DCGAN(object):
         self.t_dim = t_dim
 
         self.net_size_q=512
-        self.keep_prob = 0.6
+        self.keep_prob = 0.5
         self.y_dim = y_dim
         self.z_dim = z_dim
 
@@ -166,8 +166,8 @@ class DCGAN(object):
       # Generate probabilistic encoder (recognition network), which
       # maps inputs onto a normal distribution in latent space.
       # The transformation is parametrized and can be learned.
-      H1 = tf.nn.dropout(tf.nn.softplus(linear(self.batch_flatten, self.net_size_q, 'vae_q_lin1')), self.keep_prob**2)
-      H2 = tf.nn.dropout(tf.nn.softplus(linear(H1, self.net_size_q, 'vae_q_lin2')), self.keep_prob**2)
+      H1 = tf.nn.dropout(tf.nn.softplus(linear(self.batch_flatten, self.net_size_q, 'vae_q_lin1')), self.keep_prob)
+      H2 = tf.nn.dropout(tf.nn.softplus(linear(H1, self.net_size_q, 'vae_q_lin2')), self.keep_prob)
       z_mean = linear(H2, self.z_dim, 'vae_q_lin3_mean')
       z_log_sigma_sq = linear(H2, self.z_dim, 'vae_q_lin3_log_sigma_sq')
       return (z_mean, z_log_sigma_sq)
@@ -226,9 +226,6 @@ class DCGAN(object):
                         splitInto = 32# segments
                         amountNeeded = batch_size * Y_DIM
                         for i in range(0,len(batch)-amountNeeded, batch_size * Y_DIM//splitInto): #  window over the song.  every nn sees every entry. * 2 for left / right speaker
-                            if(batch[i][LENGTH-1] == 0.0):
-                               print("reached end of file?")
-                               next
                             thebatch = np.array(batch[i:i+amountNeeded])
                             thebatch = np.reshape(thebatch, [batch_size, Y_DIM, LENGTH])
                             #scipy.misc.imsave("visualize/input-"+str(i)+".png", thebatch[0][0::2])
@@ -322,10 +319,17 @@ class DCGAN(object):
                     t *= 0.5*stepsize
                     t += position
                     t *= 20
+                    np.random.seed(42)
                     audio = self.sample(t)
                     audio = np.reshape(audio[0::2], (-1, LENGTH))
                     audio = audio[:128]
                     scipy.misc.imsave("visualize/samples-%08d.png" % counter, audio[0::2][:Y_DIM])
+                    np.random.seed(4281)
+                    audio = self.sample(t)
+                    audio = np.reshape(audio[0::2], (-1, LENGTH))
+                    audio = audio[:128]
+                    scipy.misc.imsave("visualize/samples-%08d-2.png" % counter, audio[0::2][:Y_DIM])
+
                 #print("Batch ", counter)
                 if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
                     print("Saving after next batch")
@@ -346,7 +350,6 @@ class DCGAN(object):
 
 
     def sample(self, t):
-        np.random.seed(42)
         wavs = (np.random.uniform(-1,1.0,(self.batch_size, Y_DIM, LENGTH))*40000)
         #wavs = np.ones((self.batch_size, Y_DIM, LENGTH)) * 40000
         result = self.sess.run(
@@ -363,32 +366,34 @@ class DCGAN(object):
         network_size = 8*8
         wav_unroll = tf.reshape(wav, [self.batch_size, Y_DIM*LENGTH])
 
-        U = fully_connected(wav_unroll, network_size, 'd_0_wav')
+        U = fully_connected(wav_unroll, network_size, 'd_0_wav', with_bias= False)
         #print("D U ", U.get_shape())
         
-        H = tf.nn.softplus(U)
+        #H = tf.nn.softplus(U)
+        H = U
 
         c1_dim=32
         c2_dim=64
         c3_dim=128
         #H = wav
-        H = tf.nn.dropout(H, self.keep_prob**2)
+        H = tf.nn.dropout(H, self.keep_prob)
         H =  tf.reshape(H, [self.batch_size, 8,8,1])
         H = tf.nn.relu(conv2d(H, c1_dim, name="d_conv1", k_w=5, k_h=5, d_h=1, d_w=1))
-        H = tf.nn.dropout(H, self.keep_prob**2)
+        H = tf.nn.dropout(H, self.keep_prob)
         H = tf.nn.relu(conv2d(H, c2_dim, name="d_conv2", k_w=5, k_h=5))
         H = tf.nn.dropout(H, self.keep_prob)
-        H = tf.nn.relu(conv2d(H, c3_dim, name="d_conv3", k_w=3, k_h=3))
+        H = conv2d(H, c3_dim, name="d_conv3", k_w=3, k_h=3)
         H = tf.reshape(H, [self.batch_size, -1])
-        for i in range(1, depth):
-          H = tf.nn.tanh(fully_connected(H, network_size, 'd_tanh_'+str(i)))
-          H = tf.nn.dropout(H, self.keep_prob)
+        #for i in range(1, depth):
+        #  H = tf.nn.tanh(fully_connected(H, network_size, 'd_tanh_'+str(i)))
+        #  H = tf.nn.dropout(H, self.keep_prob)
         #  print("D H ", H.get_shape())
         output = H
         #disc = lstm.discriminator(output, 1, 'd_lstm')
         #output = linear(output, 128, "d_lstm_in")
         #output = tf.nn.tanh(lstm.discriminator(output, network_size, 'd_lstm0'))
         #output = lstm.enerator(self.z, LENGTH)
+        output = tf.nn.tanh(output)
         output = linear(output, 1, "d_fc_out")
         print("D OUT", output.get_shape())
 
@@ -407,20 +412,23 @@ class DCGAN(object):
         scale = 1.0
         depth = 4
 
+        #z =  (np.random.uniform(-1,1.0,(self.batch_size, network_size))*scale)
 
         z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * \
                         tf.ones([LENGTH, 1], dtype=tf.float32) #* scale
 
-        z_unroll = tf.reshape(z_scaled, [self.batch_size, LENGTH*self.z_dim])
+        #z_unroll = tf.reshape(z, [self.batch_size, 4*self.z_dim])
         #l_unroll = lstm.generator(z_unroll, LENGTH*self.z_dim)
-        t_unroll = tf.reshape(self.t, [self.batch_size, self.t_dim])
+        #t_unroll = tf.reshape(self.t, [self.batch_size, self.t_dim])
 
-        U = fully_connected(z_unroll*scale, network_size, 'g_0_z') + \
-            fully_connected(t_unroll, network_size, 'g_0_t', with_bias = False) 
+        #U = fully_connected(z_unroll*scale, network_size, 'g_0_z', with_bias=False)# + \
+         #   fully_connected(t_unroll, network_size, 'g_0_t', with_bias = False) 
             #fully_connected(l_unroll, network_size, 'g_0_l', with_bias = False)
 
         
-        H = tf.nn.softplus(U)
+        #z = z.astype(np.float32)
+        #H = tf.nn.softplus(z)
+        H = z_scaled
         print("H ", H)
 
         x = LENGTH
@@ -428,25 +436,33 @@ class DCGAN(object):
 
         p = 4
 
-        output = linear(H, p*p*(p*4), 'g_lin_0')
-        output = tf.reshape(output, [self.batch_size, p, p, p*4])
-        output = lrelu(deconv2d(output, [self.batch_size, p*2, p*2, p*2], name='g_d_1'))
+        output = H
+
+        #output = linear(H, p*p*(p*4), 'g_lin_0')
+        output = tf.reshape(output, [self.batch_size, p, p, p*20])
+        output = tf.nn.relu(deconv2d(output, [self.batch_size, p*2, p*2, p*10], name='g_d_1'))
         output = tf.nn.dropout(output, self.keep_prob)
-        output = self.g_bn0(output)
-        output = lrelu(deconv2d(output, [self.batch_size, p*4, p*4, p], name='g_d_2'))
-        output = self.g_bn1(output)
-        output = lrelu(deconv2d(output, [self.batch_size, p*8, p*8, p//2], name='g_d_3'))
-        output = self.g_bn2(output)
-        output = lrelu(deconv2d(output, [self.batch_size, p*16, p*16, p//4], name='g_d_4'))
+        #output = self.g_bn0(output)
+        output = tf.nn.relu(deconv2d(output, [self.batch_size, p*4, p*4, p*5], name='g_d_2'))
         output = tf.nn.dropout(output, self.keep_prob)
-        output = self.g_bn3(output)
+        #output = self.g_bn1(output)
+        output = tf.nn.relu(deconv2d(output, [self.batch_size, p*8, p*8, p*3], name='g_d_3'))
+        output = tf.nn.dropout(output, self.keep_prob)
+        #output = self.g_bn2(output)
+        output = deconv2d(output, [self.batch_size, p*16, p*16, 20], name='g_d_4')
+        #output = tf.nn.dropout(output, self.keep_prob)
+        #output = self.g_bn3(output)
         output = tf.reshape(output, [self.batch_size, -1])
+        print("Deconv out", output)
 
-        output = fully_connected(output, network_size, "g_fc_out")
-        output = tf.nn.tanh(output)
-        output = tf.nn.sigmoid(output)
+        #output = fully_connected(output, LENGTH*self.z_dim, "g_z2_out")
+        #output = output 
+        #output = tf.nn.sigmoid(output)
+        #output = tf.nn.tanh(output)
 
-        output = fully_connected(output, Y_DIM*LENGTH, "g_fc_out2")
+        #output = fully_connected(output, network_size, "g_fc_out")
+        #output = tf.nn.tanh(output)
+        #output = fully_connected(output, Y_DIM*LENGTH, "g_fc_out2")
         #output = tf.nn.tanh(lstm.generator(output, Y_DIM*LENGTH, 'g_lstm4'))
         output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
 
