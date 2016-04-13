@@ -10,7 +10,7 @@ import hwav
 import tensorflow_wav
 
 
-dataset="wavelet-drums-converge3"
+dataset="wavelet-drums-scribe"
 batch_size=32
 checkpoint_dir="checkpoint"
 bitrate=4096*2
