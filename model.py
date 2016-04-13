@@ -209,28 +209,40 @@ class DCGAN(object):
             np.random.shuffle(batch_files)
 
             def get_wav_content(files, batch_size):
-                for filee in files:
-                    print("Yielding ", filee)
+                for filea, fileb in zip(*[files[0::2], files[1::2]]):
                     try:
+                        def get_batch(filee):
 
-                        mlaudio = tensorflow_wav.get_pre(filee)
-                        left, right = mlaudio['wavdec']
-                        data_left = hwav.leaves_from(left)
-                        data_right = hwav.leaves_from(right)
+                            mlaudio = tensorflow_wav.get_pre(filee)
+                            left, right = mlaudio['wavdec']
+                            data_left = hwav.leaves_from(left)
+                            data_right = hwav.leaves_from(right)
 
-                        batch = np.empty(len(data_left) + len(data_right)).tolist()
-                        batch[0::2]=data_left
-                        batch[1::2]=data_right
-                        batch = np.array([b[:LENGTH] for b in batch])
+                            batch = np.empty(len(data_left) + len(data_right)).tolist()
+                            batch[0::2]=data_left
+                            batch[1::2]=data_right
+                            batch = np.array([b[:LENGTH] for b in batch])
+                            return batch
                         #scipy.misc.imsave("visualize/input-full.png", data_left[:Y_DIM])
-                        splitInto = 32# segments
+                        batches = [get_batch(filea), get_batch(fileb)]
+                        splitInto = 2# segments
                         amountNeeded = batch_size * Y_DIM
-                        for i in range(0,len(batch)-amountNeeded, batch_size * Y_DIM//splitInto): #  window over the song.  every nn sees every entry. * 2 for left / right speaker
-                            thebatch = np.array(batch[i:i+amountNeeded])
-                            thebatch = np.reshape(thebatch, [batch_size, Y_DIM, LENGTH])
-                            #scipy.misc.imsave("visualize/input-"+str(i)+".png", thebatch[0][0::2])
+                        for i in range(0,len(batches[0])-amountNeeded, batch_size * Y_DIM//splitInto): #  window over the song.  every nn sees every entry. * 2 for left / right speaker
+                            #if(batch[i][LENGTH-1] == 0.0):
+                            #   print("reached end of file?")
+                            #   next
+                            batcha = np.array(batches[0][i:i+amountNeeded])
+                            batcha = np.reshape(batcha, [batch_size, Y_DIM, LENGTH])
+                            #scipy.misc.imsave("visualize/input-"+str(i)+".png", batcha[0][0::2])
                             
-                            yield [thebatch, i/len(batch), 1.0/batch_size]
+                            yield [batcha, i/len(batches[0]), 1.0/batch_size]
+
+                            batchb = np.array(batches[1][i:i+amountNeeded])
+                            batchb = np.reshape(batchb, [batch_size, Y_DIM, LENGTH])
+                            #scipy.misc.imsave("visualize/input-"+str(i)+".png", batcha[0][0::2])
+                            
+                            yield [batchb, i/len(batches[1]), 1.0/batch_size]
+
                     except Exception as e:
                         print("Could not load ", filee, e)
 
