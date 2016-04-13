@@ -11,7 +11,7 @@ import lstm
 import hwav
 
 LENGTH = 20
-Y_DIM = 4096
+Y_DIM = 256
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
@@ -375,13 +375,14 @@ class DCGAN(object):
         if reuse:
             tf.get_variable_scope().reuse_variables()
         depth = 4
-        network_size = 8*8
+        network_size = 256
         wav_unroll = tf.reshape(wav, [self.batch_size, Y_DIM*LENGTH])
 
-        U = fully_connected(wav_unroll, network_size, 'd_0_wav', with_bias= False)
+        #U = fully_connected(wav_unroll, network_size, 'd_0_wav', with_bias= False)
         #print("D U ", U.get_shape())
         
         #H = tf.nn.softplus(U)
+        U = wav_unroll
         H = U
 
         c1_dim=32
@@ -389,7 +390,7 @@ class DCGAN(object):
         c3_dim=128
         #H = wav
         H = tf.nn.dropout(H, self.keep_prob)
-        H =  tf.reshape(H, [self.batch_size, 8,8,1])
+        H =  tf.reshape(H, [self.batch_size, 20,Y_DIM, 1])
         H = tf.nn.relu(conv2d(H, c1_dim, name="d_conv1", k_w=5, k_h=5, d_h=1, d_w=1))
         H = tf.nn.dropout(H, self.keep_prob)
         H = tf.nn.relu(conv2d(H, c2_dim, name="d_conv2", k_w=5, k_h=5))
@@ -451,17 +452,17 @@ class DCGAN(object):
         output = H
 
         #output = linear(H, p*p*(p*4), 'g_lin_0')
-        output = tf.reshape(output, [self.batch_size, p, p, p*20])
-        output = tf.nn.relu(deconv2d(output, [self.batch_size, p*2, p*2, p*10], name='g_d_1'))
+        output = tf.reshape(output, [self.batch_size, p, p, 80])
+        output = tf.nn.tanh(deconv2d(output, [self.batch_size, p*2, p*2, 60], name='g_d_1'))
         output = tf.nn.dropout(output, self.keep_prob)
         #output = self.g_bn0(output)
-        output = tf.nn.relu(deconv2d(output, [self.batch_size, p*4, p*4, p*5], name='g_d_2'))
+        output = tf.nn.tanh(deconv2d(output, [self.batch_size, p*4, p*4, 40], name='g_d_2'))
         output = tf.nn.dropout(output, self.keep_prob)
         #output = self.g_bn1(output)
-        output = tf.nn.relu(deconv2d(output, [self.batch_size, p*8, p*8, p*3], name='g_d_3'))
-        output = tf.nn.dropout(output, self.keep_prob)
+        output = tf.nn.tanh(deconv2d(output, [self.batch_size, p*8, p*8, 5], name='g_d_3'))
+        #output = tf.nn.dropout(output, self.keep_prob)
         #output = self.g_bn2(output)
-        output = deconv2d(output, [self.batch_size, p*16, p*16, 20], name='g_d_4')
+        #output = deconv2d(output, [self.batch_size, p*16, p*16, 2], name='g_d_4')
         #output = tf.nn.dropout(output, self.keep_prob)
         #output = self.g_bn3(output)
         output = tf.reshape(output, [self.batch_size, -1])
