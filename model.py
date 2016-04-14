@@ -11,7 +11,7 @@ import lstm
 import hwav
 
 LENGTH = 20
-Y_DIM = 256
+Y_DIM = 1024
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
@@ -385,9 +385,9 @@ class DCGAN(object):
         U = wav_unroll
         H = U
 
-        c1_dim=16
-        c2_dim=32
-        c3_dim=64
+        c1_dim=24
+        c2_dim=48
+        c3_dim=96
         #H = wav
         H = tf.nn.dropout(H, self.keep_prob)
         H =  tf.reshape(H, [self.batch_size, 20,Y_DIM, 1])
@@ -452,19 +452,22 @@ class DCGAN(object):
         output = H
 
         output = tf.reshape(output, [self.batch_size, -1])
-        scribe = linear(output, 16, 'g_scribe')
-        output = linear(output, 4*63*8, 'g_lin_0')
-        output = tf.reshape(output, [self.batch_size, 4, 63, 8])
+        scribe = linear(output, 32, 'g_scribe')
+        output = linear(output, 4*16*32, 'g_lin_0')
+        output = tf.reshape(output, [self.batch_size,  4, 16,32])
+
+        output = deconv2d(output, [self.batch_size,  8, 32,4], name='g_d_1')
+        output = tf.nn.dropout(output, self.keep_prob)
+        output = tf.nn.tanh(output)
         #output = tf.nn.tanh(deconv2d(output, [self.batch_size, 5, 64, 64], name='g_d_1'))
         #output = tf.nn.dropout(output, self.keep_prob)
         #output = self.g_bn0(output)
-        output = deconv2d(output, [self.batch_size, 8, 126, 4], name='g_d_15')
-        output = tf.nn.dropout(output, self.keep_prob)
-        output = lrelu(output)
-        output = deconv2d(output, [self.batch_size, 16, 252, 2], name='g_d_2')
-        output = tf.nn.tanh(output)
+        output = deconv2d(output, [self.batch_size,  16, 64,2], name='g_d_15')
         #output = tf.nn.dropout(output, self.keep_prob)
-        output = deconv2d(output, [self.batch_size, 20, 256, 1], d_h=1, d_w=1, padding='VALID', name='g_d_3')
+        #output = tf.nn.tanh(output)
+        output = tf.reshape(output, [self.batch_size, -1])
+        output_dec = output
+        #output = linear(output, 20*256, 'g_d_lin')
 
 
         #output = self.g_bn1(output)
@@ -477,13 +480,18 @@ class DCGAN(object):
 
         output = tf.reshape(output, [self.batch_size, -1])
         print("Deconv out", output)
-        scribe =  fully_connected(scribe, 16, "g_scribe_fc1")
+        scribe =  fully_connected(scribe, 32, "g_scribe_fc1")
         scribe = lrelu(scribe)
-        scribe =  fully_connected(scribe, 20*256, "g_scribe_fc4")
-        filter = tf.get_variable('g_filter', [self.batch_size, 20*256], initializer=tf.random_normal_initializer(stddev=0.03))
-        filterNet =  fully_connected(filter, 20*256, "g_scribe2_out") + fully_connected(output, 20*256, "g_output_scribe")
-        filterNet = tf.nn.relu(filterNet)
-        output = tf.nn.tanh(output)*4 + (tf.nn.tanh(scribe)*tf.nn.softmax(filterNet))*2
+        scribe =  fully_connected(scribe, network_size, "g_scribe_fc4")
+        scribe = tf.nn.dropout(scribe, self.keep_prob)
+        filter = tf.get_variable('g_filter', [self.batch_size, network_size], initializer=tf.random_normal_initializer(stddev=0.03))
+        filterNet = fully_connected(output_dec, network_size, "g_output_scribe")
+        #filterNet = tf.nn.relu(filterNet)
+
+        # give the scribe the ability to change the output
+        softmax = tf.nn.sigmoid(filterNet)
+        output = linear(output, network_size, 'g_proj_start')
+        output = output + scribe*softmax
 
         #output = fully_connected(output, LENGTH*self.z_dim, "g_z2_out")
         #output = output 
@@ -495,6 +503,7 @@ class DCGAN(object):
         #output = fully_connected(output, Y_DIM*LENGTH, "g_fc_out2")
         #output = tf.nn.dropout(output, self.keep_prob)
         #output = tf.nn.tanh(lstm.generator(output, Y_DIM*LENGTH, 'g_lstm4'))
+        output = linear(output, Y_DIM*LENGTH, 'g_proj_end')
         output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
 
         return tensorflow_wav.scale_up(output)
