@@ -8,13 +8,14 @@ def discriminator(input, vocab_size, name="lstm_discriminator"):
      with tf.variable_scope(name):
         cell_input = [input]
         zeros = [tf.zeros_like(input)]
-        memory = 32
+        memory = 128
         cell = rnn_cell.BasicLSTMCell(memory)
         stacked_cell = rnn_cell.MultiRNNCell([cell]*1)
         cell_input = [input]
         outputs, state = rnn.rnn(cell, cell_input, dtype=tf.float32)
+        print("Discrim output", outputs)
         output = outputs[0]
-        return tf.reduce_max(output, 1) + tf.reduce_min(output, 1)
+        return 1- tf.reduce_max(tf.square(tf.nn.softmax(output)), 1)
  
 def generator(input, vocab_size,name='lstm_generator', split=20):
      with tf.variable_scope(name):

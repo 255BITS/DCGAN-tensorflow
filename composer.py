@@ -10,14 +10,14 @@ import hwav
 import tensorflow_wav
 
 
-dataset="wavelet-drums-scribe"
-batch_size=32
+dataset="wavelet-drums-scribe2"
+batch_size=4
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 z_dim=64
 
 LENGTH=20
-Y_DIM=256
+Y_DIM=4096
 
 COUNT=131072//(batch_size*Y_DIM/2.0)
 
