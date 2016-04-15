@@ -220,7 +220,8 @@ class DCGAN(object):
                 batch = True
                 while(batch):
                     batch = hwav_loader.next_batch()
-                    yield batch
+                    if(batch is not None):
+                        yield batch
 
 
             #print(batch)
