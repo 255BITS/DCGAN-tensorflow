@@ -2,6 +2,7 @@ import numpy as np
 import convert_raw_data
 import math
 import tensorflow_wav
+
 def leaf(t, data):
     jump = 2 # todo, different on different db modes 
     levels = len(data)
@@ -12,10 +13,10 @@ def leaf(t, data):
     while(current_level >= 0):
         index //=2
         cdata = data[current_level]
-        path.append(cdata[index])
+        path.insert(0, cdata[index])
         current_level-=1
 
-    path.reverse()
+    path
     
     for elem in last_level:
         path.append(elem)
@@ -67,20 +68,11 @@ def reconstruct_tree(leaves, tree=[]):
     
 
 def leaves_from(audio):
-    leaves = []
     n=0
-    sum=0
     total = len(audio[-1])
-    for i in range(0, len(audio)):
-        sum+=len(audio[i])
-        #print(i, len(audio[i]), sum)
 
-    while(n<total//2):
-        newleaf = leaf(n, audio)
-        leaves.append(newleaf)
-        #print(n,total//2)
-        n+=1
-    return leaves
+    return [ leaf(n, audio) for n in range(0, total//2) ]
+
         
 if __name__ == '__main__':
     test_tree = [[0], [0],[0,1],[1,2,3,4],[3,4,5,6,7,8,9,10]]

@@ -2,6 +2,7 @@ import os
 import time
 from glob import glob
 import scipy
+import hwav_loader
 import tensorflow as tf
 
 from ops import *
@@ -215,37 +216,12 @@ class DCGAN(object):
             np.random.shuffle(batch_files)
 
             def get_wav_content(files, batch_size):
-                for filea in files:
-                    try:
-                        def get_batch(filee):
+                hwav_loader.load(files, batch_size)
+                batch = True
+                while(batch):
+                    batch = hwav_loader.next_batch()
+                    yield batch
 
-                            print("Loading", filee)
-                            mlaudio = tensorflow_wav.get_pre(filee)
-                            left, right = mlaudio['wavdec']
-                            data_left = hwav.leaves_from(left)
-                            data_right = hwav.leaves_from(right)
-
-                            batch = np.empty(len(data_left) + len(data_right)).tolist()
-                            batch[0::2]=data_left
-                            batch[1::2]=data_right
-                            batch = np.array([b[:LENGTH] for b in batch])
-                            return batch
-                        #scipy.misc.imsave("visualize/input-full.png", data_left[:Y_DIM])
-                        batches = [get_batch(filea)]#, get_batch(fileb)]
-                        splitInto = 1# segments
-                        amountNeeded = batch_size * Y_DIM
-                        for i in range(0,len(batches[0])-amountNeeded, batch_size * Y_DIM//splitInto): #  window over the song.  every nn sees every entry. * 2 for left / right speaker
-                            #if(batch[i][LENGTH-1] == 0.0):
-                            #   print("reached end of file?")
-                            #   next
-                            batcha = np.array(batches[0][i:i+amountNeeded])
-                            batcha = np.reshape(batcha, [batch_size, Y_DIM, LENGTH])
-                            #scipy.misc.imsave("visualize/input-"+str(i)+".png", batcha[0][0::2])
-                            
-                            yield [batcha, i/len(batches[0]), 1.0/batch_size]
-
-                    except Exception as e:
-                        print("Could not load ", filee, e)
 
             #print(batch)
             idx=0
