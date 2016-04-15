@@ -66,6 +66,9 @@ class DCGAN(object):
         self.g_bn3 = batch_norm(batch_size, name='g_bn3')
         self.g_bn4 = batch_norm(batch_size, name='g_bn4')
 
+        self.scribbler_scale = tf.constant(2.0)
+        self.deconv_scale = tf.constant(2.0)
+
         self.dataset_name = dataset_name
         self.checkpoint_dir = checkpoint_dir
         self.build_model()
@@ -315,13 +318,16 @@ class DCGAN(object):
                     sample_rows = 20
 
                     np.random.seed(42)
-                    audio = self.sample(t)
+                    scale=3
+                    z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
+                    audio = self.sample(t,z)
                     audio = np.reshape(audio[0::2], (-1, LENGTH))
                     audio = np.reshape(audio[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
 
 
                     np.random.seed(2103123)
-                    audiob = self.sample(t)
+                    z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
+                    audiob = self.sample(t,z)
                     audiob = np.reshape(audiob[0::2], (-1, LENGTH))
                     audiob = np.reshape(audiob[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
 
@@ -329,6 +335,20 @@ class DCGAN(object):
 
                     scipy.misc.imsave("visualize/samples-%08d-both.png" % counter, audiof)
                     scipy.misc.imsave("visualize/samples-%08d-sub.png" % counter, np.subtract(audio, audiob))
+
+                    np.random.seed(42)
+                    scale=3
+                    z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
+                    audio_scrib = self.sample(t,z, scribbler_scale=2, deconv_scale=0)
+                    audio_scrib = np.reshape(audio_scrib[0::2], (-1, LENGTH))
+                    audio_scrib = np.reshape(audio_scrib[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
+
+                    audio_deconv = self.sample(t,z, scribbler_scale=0, deconv_scale=2)
+                    audio_deconv = np.reshape(audio_deconv[0::2], (-1, LENGTH))
+                    audio_deconv = np.reshape(audio_deconv[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
+
+                    audio_scales = np.hstack([audio_scrib, audio_deconv])
+                    scipy.misc.imsave("visualize/samples-%08d-scribbler-vs-deconv.png" % counter, audio_scales)
 
                     
 
@@ -351,15 +371,21 @@ class DCGAN(object):
                         self.save(config.checkpoint_dir, counter)
 
 
-    def sample(self, t):
-        wavs = (np.random.uniform(-1,1.0,(self.batch_size, Y_DIM, LENGTH))*40000)
+    def sample(self, t, z, deconv_scale=2.0, scribbler_scale=2.0):
+        #wavs = (np.random.uniform(-1,1.0,(self.batch_size, Y_DIM, LENGTH))*40000)
         #wavs = np.ones((self.batch_size, Y_DIM, LENGTH)) * 40000
-        rZ = self.z.eval({self.t: t, self.wavs: wavs})
-        print("! sample z", np.min(rZ), np.max(rZ))
+        #rZ = self.z.eval({self.t: t, self.wavs: wavs})
+        rZunrolle = self.z_unrolled.eval({self.t: t, self.z: z})
+        print(rZunrolle, "rzuenera")
+        #print("! sample z", np.min(rZ), np.max(rZ))
         result = self.sess.run(
             self.sampler,
-            feed_dict={self.wavs: wavs ,
-                       self.t: t}
+            feed_dict={
+                       self.t: t, 
+                       self.z: z,
+                       self.deconv_scale: deconv_scale,
+                       self.scribbler_scale: scribbler_scale
+                       }
         )
         return result
 
@@ -447,24 +473,30 @@ class DCGAN(object):
 
         #output = H
 
+        def build_deconv(output,scope):
+            with tf.variable_scope(scope):
+                output = tf.reshape(output, [self.batch_size,  LENGTH//4, Y_DIM//4,16])
+
+                output = deconv2d(output, [self.batch_size,  LENGTH//4, Y_DIM//4,8], name='g_d_1', d_h=1, d_w=1)
+                output = tf.nn.tanh(output)
+                output = tf.nn.dropout(output, self.keep_prob)
+                output = deconv2d(output, [self.batch_size, LENGTH//2, Y_DIM//2, 4], name='g_d_2')
+                output = tf.nn.tanh(output)
+                output = tf.nn.dropout(output, self.keep_prob)
+                output = deconv2d(output, [self.batch_size,  LENGTH, Y_DIM,1], name='g_d_15')
+                return output
+     
         #output = tf.reshape(output, [self.batch_size, -1])
         output = self.z
 
-        output = tf.matmul(output, tf.ones([output.get_shape()[1], (LENGTH//4)*(Y_DIM//4)*16]))
-        #output = linear(output, (LENGTH//4)*(Y_DIM//4)*8, 'g_lin_0')
-        #output = linear(output, network_size, 'g_lin_0')
-        output = tf.reshape(output, [self.batch_size,  LENGTH//4, Y_DIM//4,16])
-
-        output = deconv2d(output, [self.batch_size,  LENGTH//4, Y_DIM//4,8], name='g_d_1', d_h=1, d_w=1)
-        output = tf.nn.tanh(output)
-        output = tf.nn.dropout(output, self.keep_prob)
-        output = deconv2d(output, [self.batch_size, LENGTH//2, Y_DIM//2, 4], name='g_d_2')
-        output = tf.nn.tanh(output)
-        output = tf.nn.dropout(output, self.keep_prob)
-        ##output = tf.nn.dropout(output, self.keep_prob)
-        ##output = self.g_bn0(output)
-        output = deconv2d(output, [self.batch_size,  LENGTH, Y_DIM,1], name='g_d_15')
-        ##output = tf.nn.dropout(output, self.keep_prob)
+        #output = lstm.generator(output, name='g_deconv_lstm')
+        #output = linear(output, (LENGTH//4)*(Y_DIM//4)*64)
+        z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * \
+                        tf.ones([(LENGTH//4)*(Y_DIM//4)//4, 1], dtype=tf.float32) #* scale
+        output = tf.reshape(z_scaled, [self.batch_size, (LENGTH//4)*(Y_DIM//4)*16])
+        self.z_unrolled = output
+        output = build_deconv(output, 'g_main')
+       ##output = tf.nn.dropout(output, self.keep_prob)
         ##output = tf.nn.tanh(output)
         #output = linear(output, 20*256, 'g_d_lin')
 
@@ -477,15 +509,23 @@ class DCGAN(object):
         #output = tf.nn.dropout(output, self.keep_prob)
         #output = self.g_bn3(output)
 
-        scribe = tf.matmul(self.z, tf.ones([self.z.get_shape()[1], 32]))
-        filter = tf.get_variable('g_filter', [self.batch_size, 32])
-        softmax = tf.nn.softmax(filter)
+        #z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * \
+        #                tf.ones([self.z_dim, 1], dtype=tf.float32) #* scale
+        #z_expand = tf.reshape(z_scaled, [self.batch_size, self.z_dim])
+       # self.z_unrolled = self.z
+       # z_expand = self.z_unrolled
+       # # z_expand = tf.matmul(self.z, tf.ones([self.z.get_shape()[1], 64]))
+       # scribe = z_expand#+ linear(out_proj, z_expand.get_shape()[1], 'g_scribe_info')
+       # scribe = tf.nn.softplus(scribe)
+        filter = tf.get_variable('g_filter', [self.batch_size, 512])
+        #softmax = tf.nn.softmax(self.z)
         #softmax = tf.maximum(softmax, 1)
-        scribe = scribe * softmax
+        scribe = filter * lstm.generator(self.z)#softmax
+        output = tf.reshape(output, [self.batch_size, -1])
         scribbler = linear(scribe, Y_DIM*LENGTH, 'g_lin_scribe')
-        scribbler = tf.reshape(scribbler, [self.batch_size, LENGTH, Y_DIM, 1])
-        output = output + scribbler
-        #output = tf.reshape(output, [self.batch_size, -1])
+        #scribbler = build_deconv(scribbler, 'g_scrib_d')
+        #scribbler = tf.reshape(scribbler, [self.batch_size, LENGTH, Y_DIM, 1])
+        output = tf.nn.tanh(output)*self.deconv_scale + tf.nn.tanh(scribbler)*self.scribbler_scale
         #print("Deconv out", output)
         #output = fully_connected(output, network_size, 'g_proj_start2', with_bias=True)
         #output = lrelu(output)
@@ -501,8 +541,10 @@ class DCGAN(object):
         #output = tf.nn.tanh(output)
 
         #output = fully_connected(output, network_size, "g_fc_out")
+        #output = lstm.generator(output, name= "g_fc_out2", softmax=False)
+        #output = tf.nn.relu(output)
+        #output = lstm.generator(output, name= "g_fc_out3", softmax=False)
         output = tf.nn.tanh(output)
-        #output = fully_connected(output, Y_DIM*LENGTH, "g_fc_out2")
         #output = tf.nn.dropout(output, self.keep_prob)
         #output = tf.nn.tanh(lstm.generator(output, Y_DIM*LENGTH, 'g_lstm4'))
         #output = tf.nn.relu(output)

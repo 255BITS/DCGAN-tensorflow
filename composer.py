@@ -10,14 +10,14 @@ import hwav
 import tensorflow_wav
 
 
-dataset="wavelet-drums-scribe2"
-batch_size=4
+dataset="wavelet-drums-scribe5"
+batch_size=16
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 z_dim=64
 
 LENGTH=20
-Y_DIM=4096
+Y_DIM=512
 
 COUNT=131072//(batch_size*Y_DIM/2.0)
 
@@ -48,7 +48,15 @@ with tf.Session() as sess:
         t *= 0.5*stepsize
         t += position
         t *= 20
-        audio = dcgan.sample(t)
+        scale = 3
+        z = np.zeros([dcgan.batch_size, dcgan.z_dim])
+        #z =  (np.random.uniform(-1,1.0,(dcgan.batch_size, dcgan.z_dim))*scale)
+        z[:, i] = 3
+        #z[:, 0] = 1
+        print("Z is ", z)
+        #z[:, :(i-1)] = -3
+        print(i)
+        audio = dcgan.sample(t,z)
         audio = np.reshape(audio, (-1, LENGTH))
         print("shape is", np.shape(audio))
 
