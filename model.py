@@ -13,7 +13,7 @@ import hwav
 
 LENGTH = 20
 Y_DIM = 512
-FACTORY_GATES=14
+FACTORY_GATES=8
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
@@ -435,13 +435,13 @@ class DCGAN(object):
         disc = output
         disc = fully_connected(disc, network_size, 'd_fc_1')
         disc = fully_connected(disc, network_size, 'd_fc_2')
-        disc = lstm.discriminator(disc, network_size, 'd_lstm0')
+        #disc = lstm.discriminator(disc, network_size, 'd_lstm0')
         #output = lstm.enerator(self.z, LENGTH)
         #in_d = tf.matmul(wav_unroll,tf.ones([ wav_unroll.get_shape()[1], 16])) #batch_size, 16
         #in_d = tf.matmul(output,tf.ones([ output.get_shape()[1], 64])) #batch_size, 16
         #in_d = linear(output, 64, "d_lstm_lin")
         #disc = lstm.discriminator(in_d, 1, 'd_lstm')
-        output = linear(output, 1, "d_fc_out")
+        output = linear(disc, 1, "d_fc_out")
         print("D OUT", output.get_shape())
 
 
@@ -486,7 +486,7 @@ class DCGAN(object):
 
         #output = H
 
-        def build_deconv(output,scope, fc=0):
+        def build_deconv(output,scope, fc=0, network_size=128):
             with tf.variable_scope(scope):
                 z_scaled = tf.reshape(output, [self.batch_size, 1, self.z_dim]) * \
                                 tf.ones([(Y_DIM//4)*(LENGTH//4)//4, 1], dtype=tf.float32) #* scale
@@ -500,7 +500,9 @@ class DCGAN(object):
                 output = tf.nn.dropout(output, self.keep_prob)
                 output = deconv2d(output, [self.batch_size,  Y_DIM, LENGTH,1], name='g_d_15')
                 output = tf.reshape(output, [self.batch_size, -1])
-                output = build_deep(output,layers=fc)
+                if(fc > 0):
+                    output = tf.nn.tanh(output)
+                    output = build_deep(output,layers=fc, network_size=network_size)
                 output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
                 return output
      
@@ -517,7 +519,6 @@ class DCGAN(object):
                 output = tf.reshape(output, [self.batch_size, -1])
                 output = linear(scribe, Y_DIM*LENGTH, 'g_lin_scribe')
                 output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
-                output = tf.tanh(output)
 
                 return output
  
@@ -532,13 +533,11 @@ class DCGAN(object):
 
                 output= fully_connected(output, Y_DIM*LENGTH, "g_deep_proj")
                 output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
-                output = tf.tanh(output)
                 return output
 
         def build_fc(output, scope='g_fc'):
             output= fully_connected(output, Y_DIM*LENGTH, scope)
             output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
-            output = tf.tanh(output)
             return output
         def build_noise(output):
             return tf.random_uniform([self.batch_size, Y_DIM, LENGTH])
@@ -560,31 +559,37 @@ class DCGAN(object):
         output = linear(output, self.z_dim, 'g_lin_proj')
         time = self.t
         outputs = [
-                    build_scribe(output, use_lstm=True, scope="g_scribe_1"), 
-                    build_scribe(output, use_lstm=True, scope="g_scribe_2"), 
+                    #build_scribe(output, use_lstm=True, scope="g_scribe_1"), 
+                    #build_scribe(output, use_lstm=True, scope="g_scribe_2"), 
                     #build_fc(output, scope="g_fc_1"), 
                     #build_fc(output, scope="g_fc_2"), 
                     #build_deep(output, scope="g_deep_1"), 
                     #build_deep(time, scope="g_deep_t1", layers=3), 
                     #build_deep(time, scope="g_deep_t2", layers=4), 
                     #build_deep(time, scope="g_deep_t2", layers=2), build_deep(output, scope="g_deep_2", layers=3), 
-                    build_deep(output, scope="g_deep_0", layers=3, network_size=168), 
+                    #build_deep(output, scope="g_deep_0", layers=3, network_size=168), 
                     #build_deep(output, scope="g_deep_01", layers=2, network_size=192), 
-                    build_deep(output, scope="g_deep_2_92", layers=3, network_size=92), 
-                    build_deep(output, scope="g_deep_2_922", layers=3, network_size=92), 
-                    build_deep(output, scope="g_deep_3", layers=4), 
-                    build_deep(output, scope="g_deep_32", layers=4), 
-                    build_deep(output, scope="g_deep_4", layers=8, network_size=32), 
+                    #build_deep(output, scope="g_deep_2_92", layers=3, network_size=92), 
+                    #build_deep(output, scope="g_deep_2_922", layers=3, network_size=92), 
+                    #build_deep(output, scope="g_deep_3", layers=4), 
+                    #build_deep(output, scope="g_deep_32", layers=4), 
+                    #build_deep(output, scope="g_deep_4", layers=8, network_size=32), 
                     #build_deep(output, scope="g_deep_42", layers=8, network_size=32), 
                     #build_deep(output, scope="g_deep_14", layers=16, network_size=16), 
-                    build_deep(output, scope="g_deep_142", layers=16, network_size=16), 
+                    #build_deep(output, scope="g_deep_142", layers=16, network_size=16), 
                    # build_deep(output, scope="g_deep_5", layers=32, network_size=8), 
-                    build_deep(output, scope="g_deep_52", layers=32, network_size=8), 
+                    #build_deep(output, scope="g_deep_52", layers=32, network_size=8), 
                     #build_deep(output, scope="g_deep_15", layers=64, network_size=4), 
-                    build_deep(output, scope="g_deep_152", layers=64, network_size=4), 
-                    build_deconv(output, 'g_main'),
+                    #build_deep(output, scope="g_deep_152", layers=64, network_size=4), 
+                    #build_deconv(output, 'g_main'),
                     build_deconv(output, 'g_main_backup', fc=1),
-                    build_deconv(output, 'g_main_backup3', fc=2),
+                    build_deconv(output, 'g_main_fc', fc=2),
+                    build_deconv(output, 'g_main_fc2', fc=3),
+                    build_deconv(output, 'g_main_fc264', fc=2, network_size=64),
+                    build_deconv(output, 'g_main_fc332', fc=3, network_size=32),
+                    build_deconv(output, 'g_main_fc416', fc=4, network_size=16),
+                    build_deconv(output, 'g_main_fc88', fc=8, network_size=8),
+                    build_deconv(output, 'g_main_fc1623', fc=16, network_size=32),
                     #build_deconv(output, 'g_main_backup2'),
                     #build_deconv(output, 'g_main_backup3'),
                     #build_noise(output),
