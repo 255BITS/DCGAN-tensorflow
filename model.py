@@ -242,7 +242,6 @@ class DCGAN(object):
                 t *= 0.25*stepsize
                 t += position
                 t *= 20
-                print(position)
 
                 idx+=1
                 #print("Min:", np.min(batch_wavs))
@@ -505,6 +504,10 @@ class DCGAN(object):
                 return output
  
 
+        def build_fc(output, scope='g_fc'):
+            output= fully_connected(output, Y_DIM*LENGTH, scope)
+            output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
+            return output
         def build_noise(output):
             return tf.random_uniform([self.batch_size, Y_DIM, LENGTH])
         def build_zeros(output):
@@ -515,9 +518,10 @@ class DCGAN(object):
         outputs = [
                     build_scribe(output, use_lstm=True, scope="g_scribe_1"), 
                     build_scribe(output, use_lstm=False, scope="g_scribe_2"), 
+                    build_fc(output, scope="g_fc_1"), 
                     build_deconv(output, 'g_main'),
                     build_noise(output),
-                    build_zeros(output),
+                    #build_zeros(output),
                     build_ones(output)
                   ]
         print(outputs)
