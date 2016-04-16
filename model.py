@@ -12,8 +12,8 @@ import lstm
 import hwav
 
 LENGTH = 20
-Y_DIM = 1024
-FACTORY_GATES=10
+Y_DIM = 128
+FACTORY_GATES=14
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
@@ -317,7 +317,7 @@ class DCGAN(object):
 
                     X = 8
                     Y = 8
-                    sample_rows = 20
+                    sample_rows = 4
 
                     np.random.seed(42)
                     scale=3
@@ -555,8 +555,10 @@ class DCGAN(object):
                     build_deep(output, scope="g_deep_32", layers=4), 
                     build_deep(output, scope="g_deep_4", layers=16, network_size=16), 
                     build_deep(output, scope="g_deep_42", layers=16, network_size=16), 
-                    #build_deconv(output, 'g_main'),
-                    #build_deconv(output, 'g_main_backup'),
+                    build_deconv(output, 'g_main'),
+                    build_deconv(output, 'g_main_backup'),
+                    build_deconv(output, 'g_main_backup2'),
+                    build_deconv(output, 'g_main_backup3'),
                     #build_noise(output),
                     #build_zeros(output),
                     #build_ones(output)
@@ -571,7 +573,7 @@ class DCGAN(object):
 
         outputs = tf.pack(outputs)
         # outputs is now a tensor of [len(outputs), self.batch_size, LENGTH, Y_DIM]
-        killer = tf.random_normal(z_gates.get_shape(), mean=0, stddev=1)
+        killer = tf.random_normal(z_gates.get_shape(), mean=1, stddev=5)
         killer = tf.minimum(killer, 0)
         killer = tf.maximum(killer, 1)
         z_gates = tf.square(z_gates) * killer
