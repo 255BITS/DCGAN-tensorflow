@@ -52,6 +52,10 @@ class DCGAN(object):
 
         self.c_dim = c_dim
 
+        self.factory_gate = np.tile(np.ones(6), (1, self.batch_size))
+        self.factory_gate = np.reshape(self.factory_gate, [6, self.batch_size])
+        self.factory_gate = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
+
 
         # batch normalization : deals with poor initialization helps gradient flow
         self.d_bn1 = batch_norm(batch_size, name='d_bn1')
@@ -65,9 +69,6 @@ class DCGAN(object):
 
         self.g_bn3 = batch_norm(batch_size, name='g_bn3')
         self.g_bn4 = batch_norm(batch_size, name='g_bn4')
-
-        self.scribbler_scale = tf.constant(2.0)
-        self.deconv_scale = tf.constant(2.0)
 
         self.dataset_name = dataset_name
         self.checkpoint_dir = checkpoint_dir
@@ -303,7 +304,7 @@ class DCGAN(object):
 
                 SAVE_COUNT=300
                 
-                SAMPLE_COUNT=100
+                SAMPLE_COUNT=5
                 if np.mod(counter, SAMPLE_COUNT) == SAMPLE_COUNT-3:
                     stepsize = 0.03125
                     position = 0.0
@@ -336,19 +337,20 @@ class DCGAN(object):
                     scipy.misc.imsave("visualize/samples-%08d-both.png" % counter, audiof)
                     scipy.misc.imsave("visualize/samples-%08d-sub.png" % counter, np.subtract(audio, audiob))
 
-                    #np.random.seed(42)
-                    #scale=3
-                    #z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
-                    #audio_scrib = self.sample(t,z, scribbler_scale=2, deconv_scale=0)
-                    #audio_scrib = np.reshape(audio_scrib[0::2], (-1, LENGTH))
-                    #audio_scrib = np.reshape(audio_scrib[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
+                    np.random.seed(42)
+                    scale=3
+                    z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
+                    def sample_layer(i, n):
+                        one_hot = np.zeros(n)
+                        one_hot[i] = 1
+                        print(one_hot)
+                        audio_layer = self.sample(t,z, factory_gate=one_hot)
+                        audio_layer = np.reshape(audio_layer[0::2], (-1, LENGTH))
+                        audio_layer = np.reshape(audio_layer[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
+                        return audio_layer
 
-                    #audio_deconv = self.sample(t,z, scribbler_scale=0, deconv_scale=2)
-                    #audio_deconv = np.reshape(audio_deconv[0::2], (-1, LENGTH))
-                    #audio_deconv = np.reshape(audio_deconv[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
-
-                    #audio_scales = np.hstack([audio_scrib, audio_deconv])
-                    #scipy.misc.imsave("visualize/samples-%08d-scribbler-vs-deconv.png" % counter, audio_scales)
+                    audio_scales = np.hstack([sample_layer(i, len(self.g_layers)) for i in range(len(self.g_layers))])
+                    scipy.misc.imsave("visualize/samples-%08d-layers.png" % counter, audio_scales)
 
                     
 
@@ -371,7 +373,14 @@ class DCGAN(object):
                         self.save(config.checkpoint_dir, counter)
 
 
-    def sample(self, t, z, deconv_scale=2.0, scribbler_scale=2.0):
+    def sample(self, t, z, factory_gate = None):
+        if(factory_gate == None):
+            factory_gate = np.ones((len(self.g_layers), self.batch_size))
+            factory_gate = factory_gate.reshape((len(self.g_layers), self.batch_size))
+        else:
+            factory_gate = np.tile(factory_gate, (self.batch_size, 1))
+            factory_gate = factory_gate.T
+        print("FG", factory_gate)
         #wavs = (np.random.uniform(-1,1.0,(self.batch_size, Y_DIM, LENGTH))*40000)
         #wavs = np.ones((self.batch_size, Y_DIM, LENGTH)) * 40000
         #rZ = self.z.eval({self.t: t, self.wavs: wavs})
@@ -381,8 +390,7 @@ class DCGAN(object):
             feed_dict={
                        self.t: t, 
                        self.z: z,
-                       self.deconv_scale: deconv_scale,
-                       self.scribbler_scale: scribbler_scale
+                       self.factory_gate: factory_gate
                        }
         )
         return result
@@ -529,11 +537,20 @@ class DCGAN(object):
 
         number_gates = len(outputs)
 
+        # z gates is batch_size x len(g_layers)
         z_gates = linear(self.z, number_gates, 'z_gate')
 
         outputs = tf.pack(outputs)
         # outputs is now a tensor of [len(outputs), self.batch_size, LENGTH, Y_DIM]
         z_gates = tf.nn.softmax(z_gates)
+
+        # debugging, creating samples
+        print('factory gate', self.factory_gate.get_shape(), z_gates.get_shape())
+        f_gates = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
+        f_gates = tf.transpose(f_gates)
+
+        z_gates = z_gates * f_gates
+
         self.z_gates = z_gates
         z_gates = tf.transpose(z_gates)
         z_gates = tf.reshape(z_gates, [number_gates, self.batch_size, 1]) * \

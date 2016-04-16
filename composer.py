@@ -10,8 +10,8 @@ import hwav
 import tensorflow_wav
 
 
-dataset="wavelet-drums-scribe5"
-batch_size=16
+dataset="factory"
+batch_size=8
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 z_dim=64

@@ -40,7 +40,7 @@ def add_to_queue(files,batch_size):
            #scipy.misc.imsave("visualize/input-"+str(i)+".png", batcha[0][0::2])
            
            queue.put([batcha, i/len(batches[0]), 1.0/batch_size])
-        time.sleep(0.1)
+       time.sleep(0.1)
    queue.put("DONE")
 
 
