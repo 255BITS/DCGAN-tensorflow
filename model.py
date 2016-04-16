@@ -600,8 +600,8 @@ class DCGAN(object):
         z_gates = linear(self.z, number_gates, 'g_z_gate', stddev=0.02)
         print("killer is", self.killer_mean, self.killer_stddev)
         killer = tf.random_normal(z_gates.get_shape(), self.killer_mean, self.killer_stddev)#100000, stddev=100000)
-        killer = tf.minimum(killer, tf.zeros_like(killer))
-        killer = tf.minimum(killer, tf.ones_like(killer))
+        killer = tf.maximum(killer, 0)
+        killer = tf.minimum(killer, 1)
         z_gates_reshape = tf.reshape(z_gates, [self.batch_size, 1, -1]) 
         killer_reshape = tf.reshape(killer, [self.batch_size, 1, -1])
         z_info = tf.concat(1, [z_gates_reshape, killer_reshape])
@@ -617,7 +617,7 @@ class DCGAN(object):
         z_gates = z_gates * killer
         z_gates = tf.nn.sigmoid(z_gates)
 
-        self.z_gates = killer#z_gates
+        self.z_gates = z_gates
         # debugging, creating samples
         f_gates = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
         f_gates = tf.transpose(f_gates)
