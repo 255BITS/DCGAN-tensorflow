@@ -336,19 +336,19 @@ class DCGAN(object):
                     scipy.misc.imsave("visualize/samples-%08d-both.png" % counter, audiof)
                     scipy.misc.imsave("visualize/samples-%08d-sub.png" % counter, np.subtract(audio, audiob))
 
-                    np.random.seed(42)
-                    scale=3
-                    z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
-                    audio_scrib = self.sample(t,z, scribbler_scale=2, deconv_scale=0)
-                    audio_scrib = np.reshape(audio_scrib[0::2], (-1, LENGTH))
-                    audio_scrib = np.reshape(audio_scrib[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
+                    #np.random.seed(42)
+                    #scale=3
+                    #z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
+                    #audio_scrib = self.sample(t,z, scribbler_scale=2, deconv_scale=0)
+                    #audio_scrib = np.reshape(audio_scrib[0::2], (-1, LENGTH))
+                    #audio_scrib = np.reshape(audio_scrib[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
 
-                    audio_deconv = self.sample(t,z, scribbler_scale=0, deconv_scale=2)
-                    audio_deconv = np.reshape(audio_deconv[0::2], (-1, LENGTH))
-                    audio_deconv = np.reshape(audio_deconv[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
+                    #audio_deconv = self.sample(t,z, scribbler_scale=0, deconv_scale=2)
+                    #audio_deconv = np.reshape(audio_deconv[0::2], (-1, LENGTH))
+                    #audio_deconv = np.reshape(audio_deconv[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
 
-                    audio_scales = np.hstack([audio_scrib, audio_deconv])
-                    scipy.misc.imsave("visualize/samples-%08d-scribbler-vs-deconv.png" % counter, audio_scales)
+                    #audio_scales = np.hstack([audio_scrib, audio_deconv])
+                    #scipy.misc.imsave("visualize/samples-%08d-scribbler-vs-deconv.png" % counter, audio_scales)
 
                     
 
@@ -524,6 +524,7 @@ class DCGAN(object):
                     #build_zeros(output),
                     build_ones(output)
                   ]
+        self.g_layers = outputs
         print(outputs)
 
         number_gates = len(outputs)
