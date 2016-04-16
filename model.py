@@ -284,7 +284,7 @@ class DCGAN(object):
                 errVAE = self.vae_loss.eval({self.t: t, self.wavs: batch_wavs})
                 rG = self.G.eval({self.t: t, self.wavs: batch_wavs})
                 rZ = self.z.eval({self.t: t, self.wavs: batch_wavs})
-
+                z_gates = self.z_gates.eval({self.t: t, self.wavs: batch_wavs})
                 #H4 = self.h4.eval({self.wavs: batch_wavs})
                 #bf = self.batch_flatten.eval({self.wavs: batch_wavs})
                 #brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
@@ -292,6 +292,7 @@ class DCGAN(object):
 
                 #print("H4", np.min(H4), np.max(H4))
                 print("z", np.min(rZ), np.max(rZ))
+                print("z_gates",z_gates[0][:])
                 #print("bf", np.min(bf), np.max(bf))
                 #print("brf", np.min(brf), np.max(brf))
                 print("rG", np.min(rG), np.max(rG))
@@ -375,8 +376,6 @@ class DCGAN(object):
         #wavs = (np.random.uniform(-1,1.0,(self.batch_size, Y_DIM, LENGTH))*40000)
         #wavs = np.ones((self.batch_size, Y_DIM, LENGTH)) * 40000
         #rZ = self.z.eval({self.t: t, self.wavs: wavs})
-        rZunrolle = self.z_unrolled.eval({self.t: t, self.z: z})
-        print(rZunrolle, "rzuenera")
         #print("! sample z", np.min(rZ), np.max(rZ))
         result = self.sess.run(
             self.sampler,
@@ -408,7 +407,7 @@ class DCGAN(object):
         c3_dim=64
         #H = wav
         H = tf.nn.dropout(H, self.keep_prob)
-        H =  tf.reshape(H, [self.batch_size, 20,Y_DIM, 1])
+        H =  tf.reshape(H, [self.batch_size, Y_DIM,LENGTH, 1])
         H = tf.nn.tanh(conv2d(H, c1_dim, name="d_conv1", k_w=3, k_h=3))
         H = tf.nn.dropout(H, self.keep_prob)
         H = tf.nn.tanh(conv2d(H, c2_dim, name="d_conv2", k_w=3, k_h=3))
@@ -475,81 +474,74 @@ class DCGAN(object):
 
         def build_deconv(output,scope):
             with tf.variable_scope(scope):
-                output = tf.reshape(output, [self.batch_size,  LENGTH//4, Y_DIM//4,16])
+                z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * \
+                                tf.ones([(Y_DIM//4)*(LENGTH//4)//4, 1], dtype=tf.float32) #* scale
+                output = tf.reshape(z_scaled, [self.batch_size,  Y_DIM//4, LENGTH//4,16])
 
-                output = deconv2d(output, [self.batch_size,  LENGTH//4, Y_DIM//4,8], name='g_d_1', d_h=1, d_w=1)
+                output = deconv2d(output, [self.batch_size,  Y_DIM//4, LENGTH//4,8], name='g_d_1', d_h=1, d_w=1)
                 output = tf.nn.tanh(output)
                 output = tf.nn.dropout(output, self.keep_prob)
-                output = deconv2d(output, [self.batch_size, LENGTH//2, Y_DIM//2, 4], name='g_d_2')
+                output = deconv2d(output, [self.batch_size, Y_DIM//2, LENGTH//2, 4], name='g_d_2')
                 output = tf.nn.tanh(output)
                 output = tf.nn.dropout(output, self.keep_prob)
-                output = deconv2d(output, [self.batch_size,  LENGTH, Y_DIM,1], name='g_d_15')
+                output = deconv2d(output, [self.batch_size,  Y_DIM, LENGTH,1], name='g_d_15')
+                output = tf.squeeze(output)
                 return output
      
-        #output = tf.reshape(output, [self.batch_size, -1])
+
+        def build_scribe(output, scope='scribe', use_lstm=True):
+            with tf.variable_scope(scope):
+                if(use_lstm):
+                    filter = tf.get_variable('g_filter', [self.batch_size, 512])
+                    scribe = filter * lstm.generator(self.z)#softmax
+                else:
+                    filter = tf.get_variable('g_filter', [self.batch_size, self.z_dim])
+                    softmax = tf.nn.softmax(self.z)
+                    scribe = filter * softmax
+                output = tf.reshape(output, [self.batch_size, -1])
+                output = linear(scribe, Y_DIM*LENGTH, 'g_lin_scribe')
+                output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
+
+                return output
+ 
+
+        def build_noise(output):
+            return tf.random_uniform([self.batch_size, Y_DIM, LENGTH])
+        def build_zeros(output):
+            return tf.zeros([self.batch_size, Y_DIM, LENGTH])
+        def build_ones(output):
+            return tf.ones([self.batch_size, Y_DIM, LENGTH])
         output = self.z
+        outputs = [
+                    build_scribe(output, use_lstm=True, scope="g_scribe_1"), 
+                    build_scribe(output, use_lstm=False, scope="g_scribe_2"), 
+                    build_deconv(output, 'g_main'),
+                    build_noise(output),
+                    build_zeros(output),
+                    build_ones(output)
+                  ]
+        print(outputs)
 
-        #output = lstm.generator(output, name='g_deconv_lstm')
-        #output = linear(output, (LENGTH//4)*(Y_DIM//4)*64)
-        z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * \
-                        tf.ones([(LENGTH//4)*(Y_DIM//4)//4, 1], dtype=tf.float32) #* scale
-        output = tf.reshape(z_scaled, [self.batch_size, (LENGTH//4)*(Y_DIM//4)*16])
-        self.z_unrolled = output
-        output = build_deconv(output, 'g_main')
-       ##output = tf.nn.dropout(output, self.keep_prob)
-        ##output = tf.nn.tanh(output)
-        #output = linear(output, 20*256, 'g_d_lin')
+        number_gates = len(outputs)
 
+        z_gates = linear(self.z, number_gates, 'z_gate')
 
-        #output = self.g_bn1(output)
-        #output = tf.nn.tanh(deconv2d(output, [self.batch_size, p*8, p*8, 8], name='g_d_3'))
-        #output = tf.nn.dropout(output, self.keep_prob)
-        #output = self.g_bn2(output)
-        #output = deconv2d(output, [self.batch_size, p*16, p*16, 1], name='g_d_4')
-        #output = tf.nn.dropout(output, self.keep_prob)
-        #output = self.g_bn3(output)
+        outputs = tf.pack(outputs)
+        # outputs is now a tensor of [len(outputs), self.batch_size, LENGTH, Y_DIM]
+        z_gates = tf.nn.softmax(z_gates)
+        self.z_gates = z_gates
+        z_gates = tf.transpose(z_gates)
+        z_gates = tf.reshape(z_gates, [number_gates, self.batch_size, 1]) * \
+                        tf.ones([1, LENGTH*Y_DIM], dtype=tf.float32) #* scale
+        z_gates = tf.reshape(z_gates, [number_gates, self.batch_size, Y_DIM, LENGTH])
+        outputs = tf.mul(outputs, z_gates)
+        outputs = tf.unpack(outputs)
+        # outputs is now an array of tensors of [self.batch_size, LENGTH, Y_DIM]
 
-        #z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * \
-        #                tf.ones([self.z_dim, 1], dtype=tf.float32) #* scale
-        #z_expand = tf.reshape(z_scaled, [self.batch_size, self.z_dim])
-       # self.z_unrolled = self.z
-       # z_expand = self.z_unrolled
-       # # z_expand = tf.matmul(self.z, tf.ones([self.z.get_shape()[1], 64]))
-       # scribe = z_expand#+ linear(out_proj, z_expand.get_shape()[1], 'g_scribe_info')
-       # scribe = tf.nn.softplus(scribe)
-        filter = tf.get_variable('g_filter', [self.batch_size, 512])
-        #softmax = tf.nn.softmax(self.z)
-        #softmax = tf.maximum(softmax, 1)
-        scribe = filter * lstm.generator(self.z)#softmax
-        output = tf.reshape(output, [self.batch_size, -1])
-        scribbler = linear(scribe, Y_DIM*LENGTH, 'g_lin_scribe')
-        #scribbler = build_deconv(scribbler, 'g_scrib_d')
-        #scribbler = tf.reshape(scribbler, [self.batch_size, LENGTH, Y_DIM, 1])
-        output = tf.nn.tanh(output)*self.deconv_scale + tf.nn.tanh(scribbler)*self.scribbler_scale
-        #print("Deconv out", output)
-        #output = fully_connected(output, network_size, 'g_proj_start2', with_bias=True)
-        #output = lrelu(output)
-        #output = fully_connected(output, network_size, 'g_proj_start3', with_bias=True)
-        #output = lrelu(output)
-        #output = fully_connected(output, network_size, 'g_proj_start4', with_bias=True)
-        #output = tf.nn.softmax(output)
+        output = tf.add_n(outputs)
+        print("OUTPUTS IS ", outputs)
 
-
-        #output = fully_connected(output, LENGTH*self.z_dim, "g_z2_out")
-        #output = output 
-        #output = tf.nn.sigmoid(output)
-        #output = tf.nn.tanh(output)
-
-        #output = fully_connected(output, network_size, "g_fc_out")
-        #output = lstm.generator(output, name= "g_fc_out2", softmax=False)
-        #output = tf.nn.relu(output)
-        #output = lstm.generator(output, name= "g_fc_out3", softmax=False)
         output = tf.nn.tanh(output)
-        #output = tf.nn.dropout(output, self.keep_prob)
-        #output = tf.nn.tanh(lstm.generator(output, Y_DIM*LENGTH, 'g_lstm4'))
-        #output = tf.nn.relu(output)
-        #output = fully_connected(output, Y_DIM*LENGTH, 'g_proj_end', with_bias=False)
-        #output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
 
         return tensorflow_wav.scale_up(output)
 
