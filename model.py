@@ -394,7 +394,7 @@ class DCGAN(object):
                        self.t: t, 
                        self.z: z,
                        self.factory_gate: factory_gate,
-                       self.killer_mean: -2.0,
+                       self.killer_mean: 2.0,
                        self.killer_stddev: 0.
                        }
         )
