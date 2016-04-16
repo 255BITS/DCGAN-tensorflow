@@ -293,7 +293,7 @@ class DCGAN(object):
 
                 #print("H4", np.min(H4), np.max(H4))
                 print("z", np.min(rZ), np.max(rZ))
-                print("z_gates",z_gates[0][:])
+                print("z_gates", ["%.03f" % zg for zg in z_gates[0][:]])
                 #print("bf", np.min(bf), np.max(bf))
                 #print("brf", np.min(brf), np.max(brf))
                 print("rG", np.min(rG), np.max(rG))
@@ -303,7 +303,7 @@ class DCGAN(object):
                     % (epoch, idx, batch_idxs,
                         time.time() - start_time, errD_fake, errD_real, errG, errVAE))
 
-                SAVE_COUNT=300
+                SAVE_COUNT=2000
                 
                 SAMPLE_COUNT=100
                 if np.mod(counter, SAMPLE_COUNT) == SAMPLE_COUNT-3:
@@ -493,6 +493,7 @@ class DCGAN(object):
                 output = tf.nn.dropout(output, self.keep_prob)
                 output = deconv2d(output, [self.batch_size,  Y_DIM, LENGTH,1], name='g_d_15')
                 output = tf.squeeze(output)
+                output = tf.tanh(output)
                 return output
      
 
@@ -508,6 +509,7 @@ class DCGAN(object):
                 output = tf.reshape(output, [self.batch_size, -1])
                 output = linear(scribe, Y_DIM*LENGTH, 'g_lin_scribe')
                 output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
+                output = tf.tanh(output)
 
                 return output
  
@@ -520,11 +522,13 @@ class DCGAN(object):
 
                 output= fully_connected(output, Y_DIM*LENGTH, "g_deep_proj")
                 output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
+                output = tf.tanh(output)
                 return output
 
         def build_fc(output, scope='g_fc'):
             output= fully_connected(output, Y_DIM*LENGTH, scope)
             output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
+            output = tf.tanh(output)
             return output
         def build_noise(output):
             return tf.random_uniform([self.batch_size, Y_DIM, LENGTH])
@@ -553,6 +557,7 @@ class DCGAN(object):
 
         outputs = tf.pack(outputs)
         # outputs is now a tensor of [len(outputs), self.batch_size, LENGTH, Y_DIM]
+        z_gates = tf.square(z_gates)
         z_gates = tf.nn.softmax(z_gates)
 
         # debugging, creating samples
@@ -569,6 +574,9 @@ class DCGAN(object):
         outputs = tf.mul(outputs, z_gates)
         outputs = tf.unpack(outputs)
         # outputs is now an array of tensors of [self.batch_size, LENGTH, Y_DIM]
+        
+        scale_up_for_tanh = 3
+        outputs = outputs * scale_up_for_tanh
 
         output = tf.add_n(outputs)
         print("OUTPUTS IS ", outputs)

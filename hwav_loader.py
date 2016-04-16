@@ -29,7 +29,7 @@ def add_to_queue(files,batch_size):
 
        #scipy.misc.imsave("visualize/input-full.png", data_left[:Y_DIM])
        batches = [get_batch(filea)]#, get_batch(fileb)]
-       splitInto = 1# segments
+       splitInto = 8# segments
        amountNeeded = batch_size * Y_DIM
        for i in range(0,len(batches[0])-amountNeeded, batch_size * Y_DIM//splitInto): #  window over the song.  every nn sees every entry. * 2 for left / right speaker
            #if(batch[i][LENGTH-1] == 0.0):
@@ -39,6 +39,8 @@ def add_to_queue(files,batch_size):
            batcha = np.reshape(batcha, [batch_size, Y_DIM, LENGTH])
            #scipy.misc.imsave("visualize/input-"+str(i)+".png", batcha[0][0::2])
            
+           while(queue.qsize() > 100):
+               time.sleep(0.1)
            queue.put([batcha, i/len(batches[0]), 1.0/batch_size])
        time.sleep(0.1)
    queue.put("DONE")
