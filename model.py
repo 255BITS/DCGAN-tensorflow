@@ -394,7 +394,7 @@ class DCGAN(object):
                        self.t: t, 
                        self.z: z,
                        self.factory_gate: factory_gate,
-                       self.killer_mean: 2.0,
+                       self.killer_mean: -2.0,
                        self.killer_stddev: 0.
                        }
         )
@@ -597,25 +597,25 @@ class DCGAN(object):
 
         # z gates is batch_size x len(g_layers)
         #z_gates = tf.get_variable("g_z_gates", [self.batch_size, number_gates])
-        z_gates = linear(self.z, number_gates, 'g_z_gate', stddev=0.02)
+        z_gates = linear(self.z, number_gates, 'g_z_gate', stddev=0.3)
         print("killer is", self.killer_mean, self.killer_stddev)
         killer = tf.random_normal(z_gates.get_shape(), self.killer_mean, self.killer_stddev)#100000, stddev=100000)
-        killer = tf.maximum(killer, 0)
-        killer = tf.minimum(killer, 1)
+        killer= tf.greater(killer, 0)
+        killer= tf.cast(killer, tf.float32)
         z_gates_reshape = tf.reshape(z_gates, [self.batch_size, 1, -1]) 
         killer_reshape = tf.reshape(killer, [self.batch_size, 1, -1])
         z_info = tf.concat(1, [z_gates_reshape, killer_reshape])
         z_info = tf.reshape(z_info, [self.batch_size, -1])
-        z_gates = linear(z_info, number_gates, 'g_z_gate2', stddev=0.02)
+        z_gates = linear(z_info, number_gates, 'g_z_gate2', stddev=0.3)
 
         # outputs is now a tensor of [len(outputs), self.batch_size, LENGTH, Y_DIM]
         outputs = tf.pack(outputs)
 
         #z_gates = tf.square(z_gates) * killer
         #z_gates = tf.nn.softmax(z_gates)
-
-        z_gates = z_gates * killer
+    
         z_gates = tf.nn.sigmoid(z_gates)
+        z_gates = tf.mul(z_gates, killer)
 
         self.z_gates = z_gates
         # debugging, creating samples
