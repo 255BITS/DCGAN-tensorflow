@@ -10,14 +10,14 @@ import hwav
 import tensorflow_wav
 
 
-dataset="factory5"
+dataset="rain-7"
 batch_size=8
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 z_dim=64
 
 LENGTH=20
-Y_DIM=128
+Y_DIM=512
 
 COUNT=131072//(batch_size*Y_DIM/2.0)
 

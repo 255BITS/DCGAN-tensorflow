@@ -4,7 +4,7 @@ import hwav
 import numpy as np
 import time
 LENGTH = 20
-Y_DIM = 128
+Y_DIM = 512
 queue = Queue()
 def load(files, batch_size):
     p = Process(target=add_to_queue, args=([files, batch_size]))

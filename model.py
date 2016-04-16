@@ -12,7 +12,7 @@ import lstm
 import hwav
 
 LENGTH = 20
-Y_DIM = 128
+Y_DIM = 512
 FACTORY_GATES=14
 
 class DCGAN(object):
@@ -56,6 +56,9 @@ class DCGAN(object):
         self.factory_gate = np.tile(np.ones(FACTORY_GATES), (1, self.batch_size))
         self.factory_gate = np.reshape(self.factory_gate, [FACTORY_GATES, self.batch_size])
         self.factory_gate = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
+
+        self.killer_mean = tf.constant(0.)
+        self.killer_stddev=tf.constant(5.)
 
 
         # batch normalization : deals with poor initialization helps gradient flow
@@ -317,7 +320,7 @@ class DCGAN(object):
 
                     X = 8
                     Y = 8
-                    sample_rows = 4
+                    sample_rows = 20
 
                     np.random.seed(42)
                     scale=3
@@ -390,7 +393,9 @@ class DCGAN(object):
             feed_dict={
                        self.t: t, 
                        self.z: z,
-                       self.factory_gate: factory_gate
+                       self.factory_gate: factory_gate,
+                       self.killer_mean: 2.0,
+                       self.killer_stddev: 0.
                        }
         )
         return result
@@ -481,9 +486,9 @@ class DCGAN(object):
 
         #output = H
 
-        def build_deconv(output,scope):
+        def build_deconv(output,scope, fc=0):
             with tf.variable_scope(scope):
-                z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * \
+                z_scaled = tf.reshape(output, [self.batch_size, 1, self.z_dim]) * \
                                 tf.ones([(Y_DIM//4)*(LENGTH//4)//4, 1], dtype=tf.float32) #* scale
                 output = tf.reshape(z_scaled, [self.batch_size,  Y_DIM//4, LENGTH//4,16])
 
@@ -494,12 +499,13 @@ class DCGAN(object):
                 output = tf.nn.tanh(output)
                 output = tf.nn.dropout(output, self.keep_prob)
                 output = deconv2d(output, [self.batch_size,  Y_DIM, LENGTH,1], name='g_d_15')
-                output = tf.squeeze(output)
-                output = tf.tanh(output)
+                output = tf.reshape(output, [self.batch_size, -1])
+                output = build_deep(output,layers=fc)
+                output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
                 return output
      
 
-        def build_scribe(output, scope='scribe', use_lstm=True):
+        def build_scribe(output, scope='scribe', use_lstm=True): 
             with tf.variable_scope(scope):
                 if(use_lstm):
                     filter = tf.get_variable('g_filter', [self.batch_size, 64])
@@ -517,6 +523,8 @@ class DCGAN(object):
  
 
         def build_deep(output, scope='g_deep', layers=2, network_size=128):
+            if(layers == 0):
+                return output
             with tf.variable_scope(scope):
                 for layer in range(layers):
                     output= fully_connected(output, network_size, "g_deep"+str(layer))
@@ -538,27 +546,47 @@ class DCGAN(object):
             return tf.zeros([self.batch_size, Y_DIM, LENGTH])
         def build_ones(output):
             return tf.ones([self.batch_size, Y_DIM, LENGTH])
-        output = lstm.generator(self.z, name='g_lstm_gen', softmax=False)
+        memory = self.z
+        memory = lstm.generator(memory, name='g_lstm_gen', softmax=False)
+        memory = lstm.generator(memory, name='g_lstm_gen2', softmax=False)
+        memory = lstm.generator(memory, name='g_lstm_gen3', softmax=False)
+        memory = lstm.generator(memory, name='g_lstm_gen4', softmax=False)
+        memory = lstm.generator(memory, name='g_lstm_gen5', softmax=False)
+        memory = tf.reshape(memory, [self.batch_size, 1, -1])
+        z = tf.reshape(self.z, [self.batch_size, 1, -1])
+        output = tf.concat(1, [z,memory])
+        print('out is', output)
+        output = tf.reshape(output, [self.batch_size, -1])
+        output = linear(output, self.z_dim, 'g_lin_proj')
         time = self.t
         outputs = [
                     build_scribe(output, use_lstm=True, scope="g_scribe_1"), 
                     build_scribe(output, use_lstm=True, scope="g_scribe_2"), 
-                    build_fc(output, scope="g_fc_1"), 
-                    build_fc(output, scope="g_fc_2"), 
+                    #build_fc(output, scope="g_fc_1"), 
+                    #build_fc(output, scope="g_fc_2"), 
                     #build_deep(output, scope="g_deep_1"), 
                     #build_deep(time, scope="g_deep_t1", layers=3), 
                     #build_deep(time, scope="g_deep_t2", layers=4), 
                     #build_deep(time, scope="g_deep_t2", layers=2), build_deep(output, scope="g_deep_2", layers=3), 
+                    build_deep(output, scope="g_deep_0", layers=3, network_size=168), 
+                    #build_deep(output, scope="g_deep_01", layers=2, network_size=192), 
                     build_deep(output, scope="g_deep_2_92", layers=3, network_size=92), 
                     build_deep(output, scope="g_deep_2_922", layers=3, network_size=92), 
                     build_deep(output, scope="g_deep_3", layers=4), 
                     build_deep(output, scope="g_deep_32", layers=4), 
-                    build_deep(output, scope="g_deep_4", layers=16, network_size=16), 
-                    build_deep(output, scope="g_deep_42", layers=16, network_size=16), 
+                    build_deep(output, scope="g_deep_4", layers=8, network_size=32), 
+                    #build_deep(output, scope="g_deep_42", layers=8, network_size=32), 
+                    #build_deep(output, scope="g_deep_14", layers=16, network_size=16), 
+                    build_deep(output, scope="g_deep_142", layers=16, network_size=16), 
+                   # build_deep(output, scope="g_deep_5", layers=32, network_size=8), 
+                    build_deep(output, scope="g_deep_52", layers=32, network_size=8), 
+                    #build_deep(output, scope="g_deep_15", layers=64, network_size=4), 
+                    build_deep(output, scope="g_deep_152", layers=64, network_size=4), 
                     build_deconv(output, 'g_main'),
-                    build_deconv(output, 'g_main_backup'),
-                    build_deconv(output, 'g_main_backup2'),
-                    build_deconv(output, 'g_main_backup3'),
+                    build_deconv(output, 'g_main_backup', fc=1),
+                    build_deconv(output, 'g_main_backup3', fc=2),
+                    #build_deconv(output, 'g_main_backup2'),
+                    #build_deconv(output, 'g_main_backup3'),
                     #build_noise(output),
                     #build_zeros(output),
                     #build_ones(output)
@@ -569,17 +597,27 @@ class DCGAN(object):
 
         # z gates is batch_size x len(g_layers)
         #z_gates = tf.get_variable("g_z_gates", [self.batch_size, number_gates])
-        z_gates = linear(self.z, number_gates, 'z_gate', stddev=0.1)
+        z_gates = linear(self.z, number_gates, 'g_z_gate', stddev=0.02)
+        print("killer is", self.killer_mean, self.killer_stddev)
+        killer = tf.random_normal(z_gates.get_shape(), self.killer_mean, self.killer_stddev)#100000, stddev=100000)
+        killer = tf.minimum(killer, tf.zeros_like(killer))
+        killer = tf.minimum(killer, tf.ones_like(killer))
+        z_gates_reshape = tf.reshape(z_gates, [self.batch_size, 1, -1]) 
+        killer_reshape = tf.reshape(killer, [self.batch_size, 1, -1])
+        z_info = tf.concat(1, [z_gates_reshape, killer_reshape])
+        z_info = tf.reshape(z_info, [self.batch_size, -1])
+        z_gates = linear(z_info, number_gates, 'g_z_gate2', stddev=0.02)
 
-        outputs = tf.pack(outputs)
         # outputs is now a tensor of [len(outputs), self.batch_size, LENGTH, Y_DIM]
-        killer = tf.random_normal(z_gates.get_shape(), mean=1, stddev=5)
-        killer = tf.minimum(killer, 0)
-        killer = tf.maximum(killer, 1)
-        z_gates = tf.square(z_gates) * killer
+        outputs = tf.pack(outputs)
 
-        z_gates = tf.nn.softmax(z_gates)
-        self.z_gates = z_gates
+        #z_gates = tf.square(z_gates) * killer
+        #z_gates = tf.nn.softmax(z_gates)
+
+        z_gates = z_gates * killer
+        z_gates = tf.nn.sigmoid(z_gates)
+
+        self.z_gates = killer#z_gates
         # debugging, creating samples
         f_gates = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
         f_gates = tf.transpose(f_gates)
@@ -594,13 +632,13 @@ class DCGAN(object):
         outputs = tf.unpack(outputs)
         # outputs is now an array of tensors of [self.batch_size, LENGTH, Y_DIM]
         
-        scale_up_for_tanh = 3
+        scale_up_for_tanh = 1
         outputs = outputs * scale_up_for_tanh
 
-        #output = tf.nn.tanh(outputs[0])*2
-        #for output in outputs[1:]:
-        #    output = output + tf.nn.tanh(output)*2
-        output = tf.add_n(outputs)
+        output = tf.nn.tanh(outputs[0])*5
+        for elem in outputs[1:]:
+            output = output + tf.nn.tanh(elem)*5
+        #output = tf.add_n(outputs)
         print("OUTPUTS IS ", outputs)
 
         output = tf.nn.tanh(output)
