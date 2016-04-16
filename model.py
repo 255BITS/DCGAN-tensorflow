@@ -12,8 +12,8 @@ import lstm
 import hwav
 
 LENGTH = 20
-Y_DIM = 4096
-FACTORY_GATES=8
+Y_DIM = 1024
+FACTORY_GATES=10
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
@@ -303,7 +303,7 @@ class DCGAN(object):
                     % (epoch, idx, batch_idxs,
                         time.time() - start_time, errD_fake, errD_real, errG, errVAE))
 
-                SAVE_COUNT=2000
+                SAVE_COUNT=1000
                 
                 SAMPLE_COUNT=100
                 if np.mod(counter, SAMPLE_COUNT) == SAMPLE_COUNT-3:
@@ -399,7 +399,7 @@ class DCGAN(object):
         if reuse:
             tf.get_variable_scope().reuse_variables()
         depth = 4
-        network_size = 64
+        network_size = 128
         wav_unroll = tf.reshape(wav, [self.batch_size, Y_DIM*LENGTH])
 
         #U = fully_connected(wav_unroll, network_size, 'd_0_wav', with_bias= False)
@@ -427,13 +427,15 @@ class DCGAN(object):
         #  print("D H ", H.get_shape())
         output = H
         #output = linear(output, 128, "d_lstm_in")
-        #output = tf.nn.tanh(lstm.discriminator(output, network_size, 'd_lstm0'))
+        disc = output
+        disc = fully_connected(disc, network_size, 'd_fc_1')
+        disc = fully_connected(disc, network_size, 'd_fc_2')
+        disc = lstm.discriminator(disc, network_size, 'd_lstm0')
         #output = lstm.enerator(self.z, LENGTH)
-        output = tf.nn.tanh(output)
         #in_d = tf.matmul(wav_unroll,tf.ones([ wav_unroll.get_shape()[1], 16])) #batch_size, 16
         #in_d = tf.matmul(output,tf.ones([ output.get_shape()[1], 64])) #batch_size, 16
-        in_d = linear(output, 64, "d_lstm_lin")
-        disc = lstm.discriminator(in_d, 1, 'd_lstm')
+        #in_d = linear(output, 64, "d_lstm_lin")
+        #disc = lstm.discriminator(in_d, 1, 'd_lstm')
         output = linear(output, 1, "d_fc_out")
         print("D OUT", output.get_shape())
 
@@ -500,8 +502,8 @@ class DCGAN(object):
         def build_scribe(output, scope='scribe', use_lstm=True):
             with tf.variable_scope(scope):
                 if(use_lstm):
-                    filter = tf.get_variable('g_filter', [self.batch_size, 512])
-                    scribe = filter * lstm.generator(self.z)#softmax
+                    filter = tf.get_variable('g_filter', [self.batch_size, 64])
+                    scribe = filter * lstm.generator(self.z, name='g_lstm_scribe')#softmax
                 else:
                     filter = tf.get_variable('g_filter', [self.batch_size, self.z_dim])
                     softmax = tf.nn.softmax(self.z)
@@ -536,37 +538,52 @@ class DCGAN(object):
             return tf.zeros([self.batch_size, Y_DIM, LENGTH])
         def build_ones(output):
             return tf.ones([self.batch_size, Y_DIM, LENGTH])
-        output = self.z
+        output = lstm.generator(self.z, name='g_lstm_gen', softmax=False)
+        time = self.t
         outputs = [
                     build_scribe(output, use_lstm=True, scope="g_scribe_1"), 
-                    build_scribe(output, use_lstm=False, scope="g_scribe_2"), 
+                    build_scribe(output, use_lstm=True, scope="g_scribe_2"), 
                     build_fc(output, scope="g_fc_1"), 
-                    build_deep(output, scope="g_deep_1"), 
-                    build_deep(output, scope="g_deep_2", layers=3), 
-                    build_deconv(output, 'g_main'),
+                    build_fc(output, scope="g_fc_2"), 
+                    #build_deep(output, scope="g_deep_1"), 
+                    #build_deep(time, scope="g_deep_t1", layers=3), 
+                    #build_deep(time, scope="g_deep_t2", layers=4), 
+                    #build_deep(time, scope="g_deep_t2", layers=2), build_deep(output, scope="g_deep_2", layers=3), 
+                    build_deep(output, scope="g_deep_2_92", layers=3, network_size=92), 
+                    build_deep(output, scope="g_deep_2_922", layers=3, network_size=92), 
+                    build_deep(output, scope="g_deep_3", layers=4), 
+                    build_deep(output, scope="g_deep_32", layers=4), 
+                    build_deep(output, scope="g_deep_4", layers=16, network_size=16), 
+                    build_deep(output, scope="g_deep_42", layers=16, network_size=16), 
+                    #build_deconv(output, 'g_main'),
+                    #build_deconv(output, 'g_main_backup'),
                     #build_noise(output),
-                    build_zeros(output),
-                    build_ones(output)
+                    #build_zeros(output),
+                    #build_ones(output)
                   ]
         self.g_layers = outputs
 
         number_gates = len(outputs)
 
         # z gates is batch_size x len(g_layers)
-        z_gates = linear(self.z, number_gates, 'z_gate')
+        #z_gates = tf.get_variable("g_z_gates", [self.batch_size, number_gates])
+        z_gates = linear(self.z, number_gates, 'z_gate', stddev=0.1)
 
         outputs = tf.pack(outputs)
         # outputs is now a tensor of [len(outputs), self.batch_size, LENGTH, Y_DIM]
-        z_gates = tf.square(z_gates)
-        z_gates = tf.nn.softmax(z_gates)
+        killer = tf.random_normal(z_gates.get_shape(), mean=0, stddev=1)
+        killer = tf.minimum(killer, 0)
+        killer = tf.maximum(killer, 1)
+        z_gates = tf.square(z_gates) * killer
 
+        z_gates = tf.nn.softmax(z_gates)
+        self.z_gates = z_gates
         # debugging, creating samples
         f_gates = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
         f_gates = tf.transpose(f_gates)
 
         z_gates = z_gates * f_gates
 
-        self.z_gates = z_gates
         z_gates = tf.transpose(z_gates)
         z_gates = tf.reshape(z_gates, [number_gates, self.batch_size, 1]) * \
                         tf.ones([1, LENGTH*Y_DIM], dtype=tf.float32) #* scale
@@ -578,6 +595,9 @@ class DCGAN(object):
         scale_up_for_tanh = 3
         outputs = outputs * scale_up_for_tanh
 
+        #output = tf.nn.tanh(outputs[0])*2
+        #for output in outputs[1:]:
+        #    output = output + tf.nn.tanh(output)*2
         output = tf.add_n(outputs)
         print("OUTPUTS IS ", outputs)
 

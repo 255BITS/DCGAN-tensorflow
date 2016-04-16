@@ -25,7 +25,7 @@ def generator(input, name='lstm_generator', split=5, softmax=True):
         vocab_size = input.get_shape()[1]
         cell_input = [input]#tf.split(1, split, input)
         zeros = [tf.zeros_like(input)]
-        memory = 512
+        memory = 128
         cell = rnn_cell.BasicLSTMCell(memory)
         stacked_cell = rnn_cell.MultiRNNCell([cell]*1)
         outputs, state = rnn.rnn(stacked_cell, cell_input, dtype=tf.float32)
@@ -33,11 +33,10 @@ def generator(input, name='lstm_generator', split=5, softmax=True):
         output=outputs[0]
         print("output is", output)
 
-        return output
         w = tf.get_variable('g_softmax_w', [memory, vocab_size], dtype=tf.float32, initializer=tf.truncated_normal_initializer(0, 0.1))
         b = tf.get_variable('g_softmax_b', [vocab_size], dtype=tf.float32, initializer=tf.constant_initializer(0))
         if softmax:
-            return tf.nn.softmax(tf.matmul(output, w)+b)
+            return tf.nn.softmax(tf.square(tf.matmul(output, w)+b))
         else:
             return tf.matmul(output, w)+b
        

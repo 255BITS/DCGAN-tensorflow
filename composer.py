@@ -10,14 +10,14 @@ import hwav
 import tensorflow_wav
 
 
-dataset="factory"
+dataset="factory4"
 batch_size=8
 checkpoint_dir="checkpoint"
 bitrate=4096*2
 z_dim=64
 
 LENGTH=20
-Y_DIM=4096
+Y_DIM=1024
 
 COUNT=131072//(batch_size*Y_DIM/2.0)
 
@@ -50,8 +50,8 @@ with tf.Session() as sess:
         t *= 20
         scale = 3
         z = np.zeros([dcgan.batch_size, dcgan.z_dim])
-        #z =  (np.random.uniform(-1,1.0,(dcgan.batch_size, dcgan.z_dim))*scale)
-        z[:, i] = 3
+        z =  (np.random.uniform(-1,1.0,(dcgan.batch_size, dcgan.z_dim))*scale)
+        #z[:, i] = 3
         #z[:, 0] = 1
         print("Z is ", z)
         #z[:, :(i-1)] = -3
