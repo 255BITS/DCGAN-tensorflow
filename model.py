@@ -304,7 +304,7 @@ class DCGAN(object):
 
                 SAVE_COUNT=300
                 
-                SAMPLE_COUNT=5
+                SAMPLE_COUNT=100
                 if np.mod(counter, SAMPLE_COUNT) == SAMPLE_COUNT-3:
                     stepsize = 0.03125
                     position = 0.0
@@ -380,7 +380,6 @@ class DCGAN(object):
         else:
             factory_gate = np.tile(factory_gate, (self.batch_size, 1))
             factory_gate = factory_gate.T
-        print("FG", factory_gate)
         #wavs = (np.random.uniform(-1,1.0,(self.batch_size, Y_DIM, LENGTH))*40000)
         #wavs = np.ones((self.batch_size, Y_DIM, LENGTH)) * 40000
         #rZ = self.z.eval({self.t: t, self.wavs: wavs})
