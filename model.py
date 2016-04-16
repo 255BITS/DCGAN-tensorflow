@@ -13,6 +13,7 @@ import hwav
 
 LENGTH = 20
 Y_DIM = 4096
+FACTORY_GATES=8
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
@@ -52,8 +53,8 @@ class DCGAN(object):
 
         self.c_dim = c_dim
 
-        self.factory_gate = np.tile(np.ones(6), (1, self.batch_size))
-        self.factory_gate = np.reshape(self.factory_gate, [6, self.batch_size])
+        self.factory_gate = np.tile(np.ones(FACTORY_GATES), (1, self.batch_size))
+        self.factory_gate = np.reshape(self.factory_gate, [FACTORY_GATES, self.batch_size])
         self.factory_gate = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
 
 
@@ -511,6 +512,16 @@ class DCGAN(object):
                 return output
  
 
+        def build_deep(output, scope='g_deep', layers=2, network_size=128):
+            with tf.variable_scope(scope):
+                for layer in range(layers):
+                    output= fully_connected(output, network_size, "g_deep"+str(layer))
+                    output= tf.nn.tanh(output)
+
+                output= fully_connected(output, Y_DIM*LENGTH, "g_deep_proj")
+                output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
+                return output
+
         def build_fc(output, scope='g_fc'):
             output= fully_connected(output, Y_DIM*LENGTH, scope)
             output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
@@ -526,13 +537,14 @@ class DCGAN(object):
                     build_scribe(output, use_lstm=True, scope="g_scribe_1"), 
                     build_scribe(output, use_lstm=False, scope="g_scribe_2"), 
                     build_fc(output, scope="g_fc_1"), 
+                    build_deep(output, scope="g_deep_1"), 
+                    build_deep(output, scope="g_deep_2", layers=3), 
                     build_deconv(output, 'g_main'),
-                    build_noise(output),
-                    #build_zeros(output),
+                    #build_noise(output),
+                    build_zeros(output),
                     build_ones(output)
                   ]
         self.g_layers = outputs
-        print(outputs)
 
         number_gates = len(outputs)
 
@@ -544,7 +556,6 @@ class DCGAN(object):
         z_gates = tf.nn.softmax(z_gates)
 
         # debugging, creating samples
-        print('factory gate', self.factory_gate.get_shape(), z_gates.get_shape())
         f_gates = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
         f_gates = tf.transpose(f_gates)
 
