@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     print(args)
-BITRATE = 4096
+BITRATE = 8192#44100
 
 def do(command):
     print("Running " + command)
@@ -180,11 +180,11 @@ if __name__ == '__main__':
         #add_to_training("datasets/one-large")
         #add_to_training("datasets/youtube-drums-2)
         #add_to_training("datasets/youtube-drums-3")
-        #add_to_training('datasets/drums2')
+        add_to_training('datasets/drums2')
         #add_to_training('datasets/youtube-drums-1')
         #add_to_training('datasets/youtube-drums-2')
         #add_to_training('datasets/youtube-drums-120bpm-1')
-        add_to_training('datasets/rain')
+        #add_to_training('datasets/rain')
         #add_to_training('datasets/videogame')
 
         #add_to_training("datasets/youtube-drums-120bpm-1")

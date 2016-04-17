@@ -10,7 +10,7 @@ import hwav
 import tensorflow_wav
 
 
-dataset="rain-7"
+dataset="drums"
 batch_size=8
 checkpoint_dir="checkpoint"
 bitrate=4096*2

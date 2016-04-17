@@ -13,7 +13,7 @@ import hwav
 
 LENGTH = 20
 Y_DIM = 512
-FACTORY_GATES=8
+FACTORY_GATES=11
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
@@ -42,6 +42,7 @@ class DCGAN(object):
 
         self.net_size_q=512
         self.keep_prob = 1
+        self.keep_prob_d = 0.5
         self.y_dim = y_dim
         self.z_dim = z_dim
 
@@ -418,12 +419,12 @@ class DCGAN(object):
         c2_dim=32
         c3_dim=64
         #H = wav
-        H = tf.nn.dropout(H, self.keep_prob)
+        H = tf.nn.dropout(H, self.keep_prob_d)
         H =  tf.reshape(H, [self.batch_size, Y_DIM,LENGTH, 1])
         H = tf.nn.tanh(conv2d(H, c1_dim, name="d_conv1", k_w=3, k_h=3))
-        H = tf.nn.dropout(H, self.keep_prob)
+        H = tf.nn.dropout(H, self.keep_prob_d)
         H = tf.nn.tanh(conv2d(H, c2_dim, name="d_conv2", k_w=3, k_h=3))
-        H = tf.nn.dropout(H, self.keep_prob)
+        H = tf.nn.dropout(H, self.keep_prob_d)
         H = conv2d(H, c3_dim, name="d_conv3", k_w=3, k_h=3)
         H = tf.reshape(H, [self.batch_size, -1])
         #for i in range(1, depth):
@@ -433,15 +434,22 @@ class DCGAN(object):
         output = H
         #output = linear(output, 128, "d_lstm_in")
         disc = output
+        disc = tf.nn.dropout(disc, self.keep_prob_d)
+        disc = tf.nn.relu(disc)
         disc = fully_connected(disc, network_size, 'd_fc_1')
+        disc = tf.nn.dropout(disc, self.keep_prob_d)
+        disc = tf.nn.relu(disc)
         disc = fully_connected(disc, network_size, 'd_fc_2')
-        #disc = lstm.discriminator(disc, network_size, 'd_lstm0')
+        disc = tf.nn.dropout(disc, self.keep_prob_d)
+        disc = tf.nn.relu(disc)
+        disc = lstm.discriminator(disc, network_size, 'd_lstm0')
         #output = lstm.enerator(self.z, LENGTH)
         #in_d = tf.matmul(wav_unroll,tf.ones([ wav_unroll.get_shape()[1], 16])) #batch_size, 16
         #in_d = tf.matmul(output,tf.ones([ output.get_shape()[1], 64])) #batch_size, 16
         #in_d = linear(output, 64, "d_lstm_lin")
         #disc = lstm.discriminator(in_d, 1, 'd_lstm')
-        output = linear(disc, 1, "d_fc_out")
+        output = tf.nn.relu(output)
+        output = linear(output, 1, "d_fc_out")
         print("D OUT", output.get_shape())
 
 
@@ -552,28 +560,30 @@ class DCGAN(object):
         memory = lstm.generator(memory, name='g_lstm_gen4', softmax=False)
         memory = lstm.generator(memory, name='g_lstm_gen5', softmax=False)
         memory = tf.reshape(memory, [self.batch_size, 1, -1])
-        z = tf.reshape(self.z, [self.batch_size, 1, -1])
-        output = tf.concat(1, [z,memory])
+        #z = tf.reshape(self.z, [self.batch_size, 1, -1])
+        output = self.z
+        #output = tf.concat(1, [z,memory])
         print('out is', output)
-        output = tf.reshape(output, [self.batch_size, -1])
-        output = linear(output, self.z_dim, 'g_lin_proj')
+        #output = tf.reshape(output, [self.batch_size, -1])
+        #output = linear(output, self.z_dim, 'g_lin_proj')
         time = self.t
         outputs = [
-                    #build_scribe(output, use_lstm=True, scope="g_scribe_1"), 
-                    #build_scribe(output, use_lstm=True, scope="g_scribe_2"), 
+                    build_scribe(output, use_lstm=True, scope="g_scribe_1"), 
+                    build_scribe(output, use_lstm=True, scope="g_scribe_2"), 
+                    build_scribe(output, use_lstm=True, scope="g_scribe_3"), 
                     #build_fc(output, scope="g_fc_1"), 
                     #build_fc(output, scope="g_fc_2"), 
                     #build_deep(output, scope="g_deep_1"), 
                     #build_deep(time, scope="g_deep_t1", layers=3), 
                     #build_deep(time, scope="g_deep_t2", layers=4), 
                     #build_deep(time, scope="g_deep_t2", layers=2), build_deep(output, scope="g_deep_2", layers=3), 
-                    #build_deep(output, scope="g_deep_0", layers=3, network_size=168), 
+                    build_deep(output, scope="g_deep_0", layers=3, network_size=168), 
                     #build_deep(output, scope="g_deep_01", layers=2, network_size=192), 
-                    #build_deep(output, scope="g_deep_2_92", layers=3, network_size=92), 
+                    build_deep(output, scope="g_deep_2_92", layers=3, network_size=92), 
                     #build_deep(output, scope="g_deep_2_922", layers=3, network_size=92), 
                     #build_deep(output, scope="g_deep_3", layers=4), 
                     #build_deep(output, scope="g_deep_32", layers=4), 
-                    #build_deep(output, scope="g_deep_4", layers=8, network_size=32), 
+                    build_deep(output, scope="g_deep_4", layers=8, network_size=32), 
                     #build_deep(output, scope="g_deep_42", layers=8, network_size=32), 
                     #build_deep(output, scope="g_deep_14", layers=16, network_size=16), 
                     #build_deep(output, scope="g_deep_142", layers=16, network_size=16), 
@@ -582,12 +592,12 @@ class DCGAN(object):
                     #build_deep(output, scope="g_deep_15", layers=64, network_size=4), 
                     #build_deep(output, scope="g_deep_152", layers=64, network_size=4), 
                     #build_deconv(output, 'g_main'),
-                    build_deconv(output, 'g_main_backup', fc=1),
+                    #build_deconv(output, 'g_main_backup', fc=1),
                     build_deconv(output, 'g_main_fc', fc=2),
                     build_deconv(output, 'g_main_fc2', fc=3),
-                    build_deconv(output, 'g_main_fc264', fc=2, network_size=64),
+                    #build_deconv(output, 'g_main_fc264', fc=2, network_size=64),
                     build_deconv(output, 'g_main_fc332', fc=3, network_size=32),
-                    build_deconv(output, 'g_main_fc416', fc=4, network_size=16),
+                    #build_deconv(output, 'g_main_fc416', fc=4, network_size=16),
                     build_deconv(output, 'g_main_fc88', fc=8, network_size=8),
                     build_deconv(output, 'g_main_fc1623', fc=16, network_size=32),
                     #build_deconv(output, 'g_main_backup2'),
@@ -611,7 +621,8 @@ class DCGAN(object):
         killer_reshape = tf.reshape(killer, [self.batch_size, 1, -1])
         z_info = tf.concat(1, [z_gates_reshape, killer_reshape])
         z_info = tf.reshape(z_info, [self.batch_size, -1])
-        z_gates = linear(z_info, number_gates, 'g_z_gate2', stddev=0.3)
+        #z_gates = linear(z_info, number_gates, 'g_z_gate2', stddev=0.3)
+        z_gates = linear(z_gates, number_gates, 'g_z_gate2', stddev=0.3)
 
         # outputs is now a tensor of [len(outputs), self.batch_size, LENGTH, Y_DIM]
         outputs = tf.pack(outputs)
@@ -619,8 +630,10 @@ class DCGAN(object):
         #z_gates = tf.square(z_gates) * killer
         #z_gates = tf.nn.softmax(z_gates)
     
+        killer = (killer-0.5)*16
+        killer = tf.minimum(killer, 0)
+        z_gates = tf.add(z_gates, killer)
         z_gates = tf.nn.sigmoid(z_gates)
-        z_gates = tf.mul(z_gates, killer)
 
         self.z_gates = z_gates
         # debugging, creating samples
