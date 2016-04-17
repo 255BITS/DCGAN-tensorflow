@@ -11,13 +11,13 @@ import tensorflow_wav
 import lstm
 import hwav
 
-LENGTH = 20
-Y_DIM = 512
-FACTORY_GATES=11
+LENGTH = 512
+WAVELONS = LENGTH
+FACTORY_GATES=2
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
-                 batch_size=64, sample_size = 2, t_dim=LENGTH,
+                 batch_size=64, sample_size = 2, t_dim=64,
                  y_dim=None, z_dim=64, gf_dim=64, df_dim=64,
                  gfc_dim=1024, dfc_dim=1024, c_dim=1, dataset_name='default',
                  checkpoint_dir='checkpoint'):
@@ -40,9 +40,9 @@ class DCGAN(object):
         self.sample_size = sample_size
         self.t_dim = t_dim
 
-        self.net_size_q=512
+        self.net_size_q=WAVELONS
         self.keep_prob = 1
-        self.keep_prob_d = 0.5
+        self.keep_prob_d = 1
         self.y_dim = y_dim
         self.z_dim = z_dim
 
@@ -58,8 +58,9 @@ class DCGAN(object):
         self.factory_gate = np.reshape(self.factory_gate, [FACTORY_GATES, self.batch_size])
         self.factory_gate = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
 
-        self.killer_mean = tf.constant(0.)
-        self.killer_stddev=tf.constant(5.)
+        #disabled
+        self.killer_mean = tf.constant(2.)
+        self.killer_stddev=tf.constant(0.)
 
 
         # batch normalization : deals with poor initialization helps gradient flow
@@ -86,13 +87,13 @@ class DCGAN(object):
 
     def build_model(self):
 
-        self.wavs = tf.placeholder(tf.float32, [self.batch_size, Y_DIM, LENGTH],
+        self.wavs = tf.placeholder(tf.float32, [self.batch_size, 2, LENGTH],
                                     name='real_wavs')
         self.batch_flatten = self.normalize_wav(tf.reshape(self.wavs, [self.batch_size, -1]))
 
         self.t_vec = self.coordinates(self.t_dim)
 
-        self.t = tf.placeholder(tf.float32, [self.batch_size, LENGTH])
+        self.t = tf.placeholder(tf.float32, [self.batch_size, self.t_dim], name='time')
 
         self.z_mean, self.z_log_sigma_sq = self.encoder()
 
@@ -104,7 +105,7 @@ class DCGAN(object):
 
  
 
-        d_wav = tf.reshape(self.wavs, [self.batch_size, Y_DIM, LENGTH])
+        d_wav = tf.reshape(self.wavs, [self.batch_size, 2, LENGTH])
         self.G = self.generator()
         self.batch_reconstruct_flatten = self.normalize_wav(tf.reshape(self.G, [self.batch_size, -1]))
 
@@ -160,7 +161,7 @@ class DCGAN(object):
       latent_loss = -0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq
                                          - tf.square(self.z_mean)
                                          - tf.exp(self.z_log_sigma_sq), 1)
-      self.vae_loss = tf.reduce_mean(reconstr_loss + latent_loss) / (LENGTH*Y_DIM) # average over batch and pixel
+      self.vae_loss = tf.reduce_mean(reconstr_loss + latent_loss) / (LENGTH) # average over batch and pixel
 
     def encode(self, X):
       """Transform data by mapping it into the latent space."""
@@ -182,7 +183,7 @@ class DCGAN(object):
 
     def train(self, config):
         """Train DCGAN"""
-        data = glob(os.path.join("./training", "*.mlaudio"))
+        data = glob(os.path.join("./training", "*.wav"))
 
         #print('g_vars', [shape.get_shape() for shape in self.g_vars])
         #print('d_vars', [shape.get_shape() for shape in self.d_vars])
@@ -221,7 +222,7 @@ class DCGAN(object):
         print('epoch', config.epoch)
 
         for epoch in range(config.epoch):
-            batch_files = glob(os.path.join("./training", "*.mlaudio"))
+            batch_files = glob(os.path.join("./training", "*.wav"))
             np.random.shuffle(batch_files)
 
             def get_wav_content(files, batch_size):
@@ -238,6 +239,7 @@ class DCGAN(object):
             batch_idxs=0
             diverged_count = 0
             for wavobj, position, stepsize in get_wav_content(batch_files, self.batch_size):
+                print("GOT", np.shape(wavobj))
                 batch_wavs = wavobj
                 batch_idxs+=1
                 errD_fake = 0
@@ -252,6 +254,7 @@ class DCGAN(object):
                 idx+=1
                 #print("Min:", np.min(batch_wavs))
                 #print("Max:", np.max(batch_wavs))
+
 
                 _ = self.sess.run((vae_optim, self.vae_loss),
                         feed_dict={self.t: t, self.wavs: batch_wavs})
@@ -322,40 +325,41 @@ class DCGAN(object):
                     X = 8
                     Y = 8
                     sample_rows = 20
+                    print("SAMPLING DISABLED")
 
-                    np.random.seed(42)
-                    scale=3
-                    z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
-                    audio = self.sample(t,z)
-                    audio = np.reshape(audio[0::2], (-1, LENGTH))
-                    audio = np.reshape(audio[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
+                    #np.random.seed(42)
+                    #scale=3
+                    #z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
+                    #audio = self.sample(t,z)
+                    #audio = np.reshape(audio[0::2], (-1, LENGTH))
+                    #audio = np.reshape(audio[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
 
 
-                    np.random.seed(2103123)
-                    z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
-                    audiob = self.sample(t,z)
-                    audiob = np.reshape(audiob[0::2], (-1, LENGTH))
-                    audiob = np.reshape(audiob[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
+                    #np.random.seed(2103123)
+                    #z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
+                    #audiob = self.sample(t,z)
+                    #audiob = np.reshape(audiob[0::2], (-1, LENGTH))
+                    #audiob = np.reshape(audiob[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
 
-                    audiof = np.hstack([audio, audiob])
+                    #audiof = np.hstack([audio, audiob])
 
-                    scipy.misc.imsave("visualize/samples-%08d-both.png" % counter, audiof)
-                    scipy.misc.imsave("visualize/samples-%08d-sub.png" % counter, np.subtract(audio, audiob))
+                    #scipy.misc.imsave("visualize/samples-%08d-both.png" % counter, audiof)
+                    #scipy.misc.imsave("visualize/samples-%08d-sub.png" % counter, np.subtract(audio, audiob))
 
-                    np.random.seed(42)
-                    scale=3
-                    z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
-                    def sample_layer(i, n):
-                        one_hot = np.zeros(n)
-                        one_hot[i] = 1
-                        print(one_hot)
-                        audio_layer = self.sample(t,z, factory_gate=one_hot)
-                        audio_layer = np.reshape(audio_layer[0::2], (-1, LENGTH))
-                        audio_layer = np.reshape(audio_layer[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
-                        return audio_layer
+                    #np.random.seed(42)
+                    #scale=3
+                    #z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim))*scale)
+                    #def sample_layer(i, n):
+                    #    one_hot = np.zeros(n)
+                    #    one_hot[i] = 1
+                    #    print(one_hot)
+                    #    audio_layer = self.sample(t,z, factory_gate=one_hot)
+                    #    audio_layer = np.reshape(audio_layer[0::2], (-1, LENGTH))
+                    #    audio_layer = np.reshape(audio_layer[:X*Y*sample_rows], [X*LENGTH, Y*sample_rows])
+                    #    return audio_layer
 
-                    audio_scales = np.hstack([sample_layer(i, len(self.g_layers)) for i in range(len(self.g_layers))])
-                    scipy.misc.imsave("visualize/samples-%08d-layers.png" % counter, audio_scales)
+                    #audio_scales = np.hstack([sample_layer(i, len(self.g_layers)) for i in range(len(self.g_layers))])
+                    #scipy.misc.imsave("visualize/samples-%08d-layers.png" % counter, audio_scales)
 
                     
 
@@ -401,38 +405,48 @@ class DCGAN(object):
         )
         return result
 
+    def create_wavelons_from_raw(self,output, wavelets):
+        dim_in = output.get_shape()[1]
+        def gaus(output, translation, dilation):
+            #input = (input - translation)/dilation
+            #return (-input)*(-tf.exp(tf.square(input)))
+            #mexican hat
+            square = tf.square(output)
+            return (1-square)*tf.exp(-square/2)
+        with tf.variable_scope('d_wnn_encode'):
+            translation = tf.get_variable('d_translation', [1, wavelets], initializer = tf.random_uniform_initializer())
+            dilation = tf.get_variable('d_dilation', [1, wavelets], initializer = tf.random_uniform_initializer())
+            w = tf.get_variable('w', [dim_in,wavelets])
+            input_proj = tf.matmul(output, w)
+            return gaus(input_proj, translation, dilation)
+
+
     def discriminator(self, wav, reuse=False, y=None):
         if reuse:
             tf.get_variable_scope().reuse_variables()
         depth = 4
-        network_size = 128
-        wav_unroll = tf.reshape(wav, [self.batch_size, Y_DIM*LENGTH])
+        network_size = WAVELONS
+        wav_unroll = tf.reshape(wav, [self.batch_size, LENGTH*2])
+        output = self.create_wavelons_from_raw(wav_unroll, WAVELONS)
 
-        #U = fully_connected(wav_unroll, network_size, 'd_0_wav', with_bias= False)
-        #print("D U ", U.get_shape())
+
+
         
-        #H = tf.nn.softplus(U)
-        U = wav_unroll
-        H = U
-
         c1_dim=16
         c2_dim=32
         c3_dim=64
-        #H = wav
+
+        H = output
         H = tf.nn.dropout(H, self.keep_prob_d)
-        H =  tf.reshape(H, [self.batch_size, Y_DIM,LENGTH, 1])
+        H = tf.reshape(H, [self.batch_size, 16,32, 1])
         H = tf.nn.tanh(conv2d(H, c1_dim, name="d_conv1", k_w=3, k_h=3))
         H = tf.nn.dropout(H, self.keep_prob_d)
         H = tf.nn.tanh(conv2d(H, c2_dim, name="d_conv2", k_w=3, k_h=3))
         H = tf.nn.dropout(H, self.keep_prob_d)
         H = conv2d(H, c3_dim, name="d_conv3", k_w=3, k_h=3)
         H = tf.reshape(H, [self.batch_size, -1])
-        #for i in range(1, depth):
-        #  H = tf.nn.tanh(fully_connected(H, network_size, 'd_tanh_'+str(i)))
-        #  H = tf.nn.dropout(H, self.keep_prob)
-        #  print("D H ", H.get_shape())
         output = H
-        #output = linear(output, 128, "d_lstm_in")
+
         disc = output
         disc = tf.nn.dropout(disc, self.keep_prob_d)
         disc = tf.nn.relu(disc)
@@ -442,19 +456,13 @@ class DCGAN(object):
         disc = fully_connected(disc, network_size, 'd_fc_2')
         disc = tf.nn.dropout(disc, self.keep_prob_d)
         disc = tf.nn.relu(disc)
-        disc = lstm.discriminator(disc, network_size, 'd_lstm0')
-        #output = lstm.enerator(self.z, LENGTH)
-        #in_d = tf.matmul(wav_unroll,tf.ones([ wav_unroll.get_shape()[1], 16])) #batch_size, 16
-        #in_d = tf.matmul(output,tf.ones([ output.get_shape()[1], 64])) #batch_size, 16
-        #in_d = linear(output, 64, "d_lstm_lin")
-        #disc = lstm.discriminator(in_d, 1, 'd_lstm')
+
+        #disc = lstm.discriminator(disc, network_size, 'd_lstm0')
         output = tf.nn.relu(output)
         output = linear(output, 1, "d_fc_out")
-        print("D OUT", output.get_shape())
 
 
-
-        return tf.nn.sigmoid(output*disc)
+        return tf.nn.sigmoid(output)#*disc)
 
 
     def generator(self, y=None):
@@ -463,155 +471,25 @@ class DCGAN(object):
     def build_generator(self,is_generator):
         if(not is_generator):
             tf.get_variable_scope().reuse_variables()
-        network_size = 512
+        network_size = WAVELONS
         scale = 1.0
         depth = 4
 
-        #z =  (np.random.uniform(-1,1.0,(self.batch_size, network_size))*scale)
-
-        #z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * \
-        #                tf.ones([LENGTH, 1], dtype=tf.float32) #* scale
-
-        #z_unroll = tf.reshape(z_scaled, [self.batch_size, LENGTH*self.z_dim])
-        #l_unroll = lstm.generator(z_unroll, LENGTH*self.z_dim)
-        #t_unroll = tf.reshape(self.t, [self.batch_size, self.t_dim])
-
-        #U = z_unroll
-        #H = U
-        #U = fully_connected(z_unroll*scale, network_size, 'g_0_z', with_bias=True)# + \
-        #    fully_connected(t_unroll, network_size, 'g_0_t', with_bias = True) 
-            #fully_connected(l_unroll, network_size, 'g_0_l', with_bias = False)
-
-        
-        #z = z.astype(np.float32)
-        #H = tf.nn.softplus(U)
-        #H = z_scaled
-
-        x = LENGTH
-        y = Y_DIM
-
         p = 4
 
-        #output = H
-
-        def build_deconv(output,scope, fc=0, network_size=128):
-            with tf.variable_scope(scope):
-                z_scaled = tf.reshape(output, [self.batch_size, 1, self.z_dim]) * \
-                                tf.ones([(Y_DIM//4)*(LENGTH//4)//4, 1], dtype=tf.float32) #* scale
-                output = tf.reshape(z_scaled, [self.batch_size,  Y_DIM//4, LENGTH//4,16])
-
-                output = deconv2d(output, [self.batch_size,  Y_DIM//4, LENGTH//4,8], name='g_d_1', d_h=1, d_w=1)
-                output = tf.nn.tanh(output)
-                output = tf.nn.dropout(output, self.keep_prob)
-                output = deconv2d(output, [self.batch_size, Y_DIM//2, LENGTH//2, 4], name='g_d_2')
-                output = tf.nn.tanh(output)
-                output = tf.nn.dropout(output, self.keep_prob)
-                output = deconv2d(output, [self.batch_size,  Y_DIM, LENGTH,1], name='g_d_15')
-                output = tf.reshape(output, [self.batch_size, -1])
-                if(fc > 0):
-                    output = tf.nn.tanh(output)
-                    output = build_deep(output,layers=fc, network_size=network_size)
-                output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
-                return output
-     
-
-        def build_scribe(output, scope='scribe', use_lstm=True): 
-            with tf.variable_scope(scope):
-                if(use_lstm):
-                    filter = tf.get_variable('g_filter', [self.batch_size, 64])
-                    scribe = filter * lstm.generator(self.z, name='g_lstm_scribe')#softmax
-                else:
-                    filter = tf.get_variable('g_filter', [self.batch_size, self.z_dim])
-                    softmax = tf.nn.softmax(self.z)
-                    scribe = filter * softmax
-                output = tf.reshape(output, [self.batch_size, -1])
-                output = linear(scribe, Y_DIM*LENGTH, 'g_lin_scribe')
-                output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
-
-                return output
- 
-
-        def build_deep(output, scope='g_deep', layers=2, network_size=128):
-            if(layers == 0):
-                return output
-            with tf.variable_scope(scope):
-                for layer in range(layers):
-                    output= fully_connected(output, network_size, "g_deep"+str(layer))
-                    output= tf.nn.tanh(output)
-
-                output= fully_connected(output, Y_DIM*LENGTH, "g_deep_proj")
-                output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
-                return output
-
         def build_fc(output, scope='g_fc'):
-            output= fully_connected(output, Y_DIM*LENGTH, scope)
-            output = tf.reshape(output, [self.batch_size, Y_DIM, LENGTH])
+            output= fully_connected(output, WAVELONS, scope)
             return output
-        def build_noise(output):
-            return tf.random_uniform([self.batch_size, Y_DIM, LENGTH])
-        def build_zeros(output):
-            return tf.zeros([self.batch_size, Y_DIM, LENGTH])
-        def build_ones(output):
-            return tf.ones([self.batch_size, Y_DIM, LENGTH])
-        memory = self.z
-        memory = lstm.generator(memory, name='g_lstm_gen', softmax=False)
-        memory = lstm.generator(memory, name='g_lstm_gen2', softmax=False)
-        memory = lstm.generator(memory, name='g_lstm_gen3', softmax=False)
-        memory = lstm.generator(memory, name='g_lstm_gen4', softmax=False)
-        memory = lstm.generator(memory, name='g_lstm_gen5', softmax=False)
-        memory = tf.reshape(memory, [self.batch_size, 1, -1])
-        #z = tf.reshape(self.z, [self.batch_size, 1, -1])
-        output = self.z
-        #output = tf.concat(1, [z,memory])
-        print('out is', output)
-        #output = tf.reshape(output, [self.batch_size, -1])
-        #output = linear(output, self.z_dim, 'g_lin_proj')
         time = self.t
+        output = self.z
         outputs = [
-                    build_scribe(output, use_lstm=True, scope="g_scribe_1"), 
-                    build_scribe(output, use_lstm=True, scope="g_scribe_2"), 
-                    build_scribe(output, use_lstm=True, scope="g_scribe_3"), 
-                    #build_fc(output, scope="g_fc_1"), 
-                    #build_fc(output, scope="g_fc_2"), 
-                    #build_deep(output, scope="g_deep_1"), 
-                    #build_deep(time, scope="g_deep_t1", layers=3), 
-                    #build_deep(time, scope="g_deep_t2", layers=4), 
-                    #build_deep(time, scope="g_deep_t2", layers=2), build_deep(output, scope="g_deep_2", layers=3), 
-                    build_deep(output, scope="g_deep_0", layers=3, network_size=168), 
-                    #build_deep(output, scope="g_deep_01", layers=2, network_size=192), 
-                    build_deep(output, scope="g_deep_2_92", layers=3, network_size=92), 
-                    #build_deep(output, scope="g_deep_2_922", layers=3, network_size=92), 
-                    #build_deep(output, scope="g_deep_3", layers=4), 
-                    #build_deep(output, scope="g_deep_32", layers=4), 
-                    build_deep(output, scope="g_deep_4", layers=8, network_size=32), 
-                    #build_deep(output, scope="g_deep_42", layers=8, network_size=32), 
-                    #build_deep(output, scope="g_deep_14", layers=16, network_size=16), 
-                    #build_deep(output, scope="g_deep_142", layers=16, network_size=16), 
-                   # build_deep(output, scope="g_deep_5", layers=32, network_size=8), 
-                    #build_deep(output, scope="g_deep_52", layers=32, network_size=8), 
-                    #build_deep(output, scope="g_deep_15", layers=64, network_size=4), 
-                    #build_deep(output, scope="g_deep_152", layers=64, network_size=4), 
-                    #build_deconv(output, 'g_main'),
-                    #build_deconv(output, 'g_main_backup', fc=1),
-                    build_deconv(output, 'g_main_fc', fc=2),
-                    build_deconv(output, 'g_main_fc2', fc=3),
-                    #build_deconv(output, 'g_main_fc264', fc=2, network_size=64),
-                    build_deconv(output, 'g_main_fc332', fc=3, network_size=32),
-                    #build_deconv(output, 'g_main_fc416', fc=4, network_size=16),
-                    build_deconv(output, 'g_main_fc88', fc=8, network_size=8),
-                    build_deconv(output, 'g_main_fc1623', fc=16, network_size=32),
-                    #build_deconv(output, 'g_main_backup2'),
-                    #build_deconv(output, 'g_main_backup3'),
-                    #build_noise(output),
-                    #build_zeros(output),
-                    #build_ones(output)
+                    build_fc(output, scope="g_fc_1"), 
+                    build_fc(output, scope="g_fc_2"), 
                   ]
         self.g_layers = outputs
 
         number_gates = len(outputs)
 
-        # z gates is batch_size x len(g_layers)
-        #z_gates = tf.get_variable("g_z_gates", [self.batch_size, number_gates])
         z_gates = linear(self.z, number_gates, 'g_z_gate', stddev=0.3)
         print("killer is", self.killer_mean, self.killer_stddev)
         killer = tf.random_normal(z_gates.get_shape(), self.killer_mean, self.killer_stddev)#100000, stddev=100000)
@@ -624,7 +502,6 @@ class DCGAN(object):
         #z_gates = linear(z_info, number_gates, 'g_z_gate2', stddev=0.3)
         z_gates = linear(z_gates, number_gates, 'g_z_gate2', stddev=0.3)
 
-        # outputs is now a tensor of [len(outputs), self.batch_size, LENGTH, Y_DIM]
         outputs = tf.pack(outputs)
 
         #z_gates = tf.square(z_gates) * killer
@@ -644,15 +521,11 @@ class DCGAN(object):
 
         z_gates = tf.transpose(z_gates)
         z_gates = tf.reshape(z_gates, [number_gates, self.batch_size, 1]) * \
-                        tf.ones([1, LENGTH*Y_DIM], dtype=tf.float32) #* scale
-        z_gates = tf.reshape(z_gates, [number_gates, self.batch_size, Y_DIM, LENGTH])
+                        tf.ones([1, WAVELONS], dtype=tf.float32) #* scale
         outputs = tf.mul(outputs, z_gates)
         outputs = tf.unpack(outputs)
-        # outputs is now an array of tensors of [self.batch_size, LENGTH, Y_DIM]
+        # outputs is now an array of tensors of [self.batch_size, WAVELONS]
         
-        scale_up_for_tanh = 1
-        outputs = outputs * scale_up_for_tanh
-
         output = tf.nn.tanh(outputs[0])*5
         for elem in outputs[1:]:
             output = output + tf.nn.tanh(elem)*5
@@ -661,7 +534,13 @@ class DCGAN(object):
 
         output = tf.nn.tanh(output)
 
-        return tensorflow_wav.scale_up(output)
+        # note, don't add a nonlinearity here.  
+        # we are converting to raw data and need a linear interpolation
+        decode_weights = tf.get_variable('g_decode_weights', [output.get_shape()[1], LENGTH*2], initializer=tf.truncated_normal_initializer(mean=0,stddev=1000 ))
+        summer = tf.get_variable('g_summer', [LENGTH*2])
+        output = tf.matmul(output,decode_weights) + summer
+        output = tf.reshape(output, [self.batch_size, 2, LENGTH])
+        return output
 
 
     def sampler(self, y=None):

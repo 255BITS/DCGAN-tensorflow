@@ -123,7 +123,7 @@ def add_to_training(dir):
         do("ffmpeg -loglevel panic -y -i \""+process_file+"\" -ac 2 \""+output_file+"\"")
         #do("sox \""+silent_file+"\" \""+output_file+"\" silence 1 0.1 0.1% reverse silence 1 0.1 0.1% reverse")
         #try:
-        preprocess(output_file)
+        #preprocess(output_file)
         #except:
         #    print("Oops that broke",  sys.exc_info()[0])
         #remove silence
