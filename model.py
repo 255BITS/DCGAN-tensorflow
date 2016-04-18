@@ -13,7 +13,7 @@ import hwav
 
 LENGTH = 4096
 WAVELONS = LENGTH//4
-FACTORY_GATES=4
+FACTORY_GATES=1
 CHANNELS=1
 
 class DCGAN(object):
@@ -121,9 +121,10 @@ class DCGAN(object):
         #self.d_sum = tf.histogram_summary("d", self.D)
         #self.d__sum = tf.histogram_summary("d_", self.D_)
 
+        reduce_wavelet = tf.sqrt(tf.reduce_mean(tf.square(self.d_wavelons-self.g_wavelons)))
         self.d_loss_real = binary_cross_entropy_with_logits(tf.ones_like(self.D), self.D)
         self.d_loss_fake = binary_cross_entropy_with_logits(tf.zeros_like(self.D_), self.D_)
-        self.g_loss = binary_cross_entropy_with_logits(tf.ones_like(self.D_), self.D_)
+        self.g_loss = binary_cross_entropy_with_logits(tf.ones_like(self.D_), self.D_) + reduce_wavelet
 
         #self.d_loss_real_sum = tf.scalar_summary("d_loss_real", self.d_loss_real)
         #self.d_loss_fake_sum = tf.scalar_summary("d_loss_fake", self.d_loss_fake)
@@ -428,6 +429,9 @@ class DCGAN(object):
         network_size = WAVELONS
         wav_unroll = tf.reshape(wav, [self.batch_size, LENGTH*CHANNELS])
         output = self.create_wavelons_from_raw(wav_unroll, WAVELONS)
+        if(reuse is not None):
+            #fake G
+            self.d_wavelons = output
         wavels = output
 
 
@@ -453,17 +457,17 @@ class DCGAN(object):
         output = tf.nn.relu(output)
         output = linear(output, 1, "d_fc_out")
 
-        o2 = wavels
-        o2 = fully_connected(o2, 32, 'd_lstm_fc_0')
-        o2 = tf.nn.relu(o2)
-        o2 = fully_connected(o2, 32, 'd_lstm_fc_1')
-        o2 = tf.nn.relu(o2)
-        o2 = linear(o2, 1, "d_fc2_out")
+        #o2 = wavels
+        #o2 = fully_connected(o2, 32, 'd_lstm_fc_0')
+        #o2 = tf.nn.relu(o2)
+        #o2 = fully_connected(o2, 32, 'd_lstm_fc_1')
+        #o2 = tf.nn.relu(o2)
+        #o2 = linear(o2, 1, "d_fc2_out")
         #disc = lstm.discriminator(o2, 32, 'd_lstm0')
         #output = tf.nn.relu(output)
 
 
-        return tf.nn.sigmoid(output+o2+H)
+        return tf.nn.sigmoid(output+H)
 
 
     def generator(self, y=None):
@@ -521,9 +525,9 @@ class DCGAN(object):
                     #build_deconv(output, 'g_deconv3', fc=2, network_size=WAVELONS),
                     #build_deconv(output, 'g_deconv4', fc=3, network_size=WAVELONS),
                     build_deep(output, 'g_deep1', layers=3, network_size=WAVELONS),
-                    build_deep(output, 'g_deep2', layers=3, network_size=WAVELONS),
-                    build_deep(output, 'g_deep3', layers=3, network_size=WAVELONS),
-                    build_deep(output, 'g_deep4', layers=3, network_size=WAVELONS),
+                    #build_deep(output, 'g_deep2', layers=3, network_size=WAVELONS),
+                    #build_deep(output, 'g_deep3', layers=3, network_size=WAVELONS),
+                    #build_deep(output, 'g_deep4', layers=3, network_size=WAVELONS),
                     #build_fc(output, scope="g_fc_1"),
                     #build_fc(output, scope="g_fc_2"), 
                   ]
@@ -551,7 +555,7 @@ class DCGAN(object):
         killer = (killer-0.5)*16
         killer = tf.minimum(killer, 0)
         #z_gates = tf.add(z_gates, killer)
-        z_gates = tf.nn.softmax(z_gates)
+        z_gates = tf.nn.softmax(tf.square(z_gates))
 
         self.z_gates = z_gates
         # debugging, creating samples
@@ -575,6 +579,9 @@ class DCGAN(object):
 
         output = tf.nn.tanh(output)
 
+        wavelon_mul = tf.get_variable('g_wavelon_weights', [output.get_shape()[1], WAVELONS], initializer=tf.truncated_normal_initializer(mean=0,stddev=0.02 ))
+        output = tf.matmul(output, wavelon_mul)
+        self.g_wavelons = output
         # note, don't add a nonlinearity here.  
         # we are converting to raw data and need a linear interpolation
         decode_weights = tf.get_variable('g_decode_weights', [output.get_shape()[1], LENGTH*CHANNELS], initializer=tf.truncated_normal_initializer(mean=0,stddev=20000 ))
