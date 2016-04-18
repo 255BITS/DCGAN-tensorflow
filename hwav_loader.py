@@ -3,7 +3,8 @@ import tensorflow_wav
 import hwav
 import numpy as np
 import time
-LENGTH = 512
+CHANNELS=1
+LENGTH = 4096
 queue = Queue()
 def load(files, batch_size):
     p = Process(target=add_to_queue, args=([files, batch_size]))
@@ -17,7 +18,7 @@ def get_batch(filee, batch_size):
    out = tensorflow_wav.get_wav(filee)
    out = np.reshape(out['data'], [-1])
    out = out[:(len(out)//batch_size//LENGTH//2)*2*LENGTH*batch_size]
-   out = np.reshape(out, [-1, batch_size, LENGTH, 2])
+   out = np.reshape(out, [-1, batch_size, LENGTH, CHANNELS])
    out = np.swapaxes(out, 2, 3)
    return out
    

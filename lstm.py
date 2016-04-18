@@ -36,7 +36,7 @@ def generator(input, name='lstm_generator', split=5, softmax=True):
         w = tf.get_variable('g_softmax_w', [memory, vocab_size], dtype=tf.float32, initializer=tf.truncated_normal_initializer(0, 0.1))
         b = tf.get_variable('g_softmax_b', [vocab_size], dtype=tf.float32, initializer=tf.constant_initializer(0))
         if softmax:
-            return tf.nn.softmax(tf.square(tf.matmul(output, w)+b))
+            return tf.nn.softmax(tf.matmul(output, w)+b)
         else:
             return tf.matmul(output, w)+b
        

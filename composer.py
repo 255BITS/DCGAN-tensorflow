@@ -10,13 +10,12 @@ import hwav
 import tensorflow_wav
 
 
-dataset="wnn"
-batch_size=1024
+dataset="wnn7"
+batch_size=128
 checkpoint_dir="checkpoint"
-bitrate=4096*2
 z_dim=64
 
-LENGTH=512
+LENGTH=4096
 
 COUNT=4
 
@@ -26,9 +25,9 @@ with tf.Session() as sess:
         dataset_name=dataset, checkpoint_dir=checkpoint_dir)
       dcgan.load(checkpoint_dir)
 
-      data = glob(os.path.join("./training", "*.mlaudio"))
+      data = glob(os.path.join("./training", "*.wav"))
       sample_file = data[0]
-      sample =tensorflow_wav.get_pre(sample_file)
+      sample =tensorflow_wav.get_wav(sample_file)
       print(sample_file, 'sample')
       samplewav = sample.copy()
 

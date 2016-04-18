@@ -19,6 +19,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
 BITRATE = 8192#44100
+CHANNELS=1
 
 def do(command):
     print("Running " + command)
@@ -120,7 +121,7 @@ def add_to_training(dir):
         silent_file = "training/silence_removed/"+fname
         output_file=  "training/"+fname
         do("ffmpeg -loglevel panic -y -i \""+file+"\" -ar "+str(BITRATE)+" \""+process_file+"\"")
-        do("ffmpeg -loglevel panic -y -i \""+process_file+"\" -ac 2 \""+output_file+"\"")
+        do("ffmpeg -loglevel panic -y -i \""+process_file+"\" -ac "+str(CHANNELS)+" \""+output_file+"\"")
         #do("sox \""+silent_file+"\" \""+output_file+"\" silence 1 0.1 0.1% reverse silence 1 0.1 0.1% reverse")
         #try:
         #preprocess(output_file)
