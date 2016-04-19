@@ -54,7 +54,7 @@ with tf.Session() as sess:
         #z = np.zeros_like(z)
         #z = np.ones_like(z)*-4
         #z[:, min(i, 63)] = 1
-        z[:, i] = 1
+        #z[:, i] = 1
         #z[:, 0] = 5
         #z[:, 1] = 1
         print("Z is ", z)

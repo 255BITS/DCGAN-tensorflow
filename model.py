@@ -13,7 +13,7 @@ import hwav
 
 LENGTH = 1024
 WAVELONS = LENGTH//4
-FACTORY_GATES=1
+FACTORY_GATES=4
 CHANNELS=1
 
 class DCGAN(object):
@@ -60,8 +60,8 @@ class DCGAN(object):
         self.factory_gate = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
 
         #disabled
-        self.killer_mean = tf.constant(2.)
-        self.killer_stddev=tf.constant(0.)
+        self.killer_mean = tf.constant(1.)
+        self.killer_stddev=tf.constant(4.)
 
 
         # batch normalization : deals with poor initialization helps gradient flow
@@ -123,10 +123,10 @@ class DCGAN(object):
         #self.d_sum = tf.histogram_summary("d", self.D)
         #self.d__sum = tf.histogram_summary("d_", self.D_)
 
-        #reduce_wavelet = tf.sqrt(tf.reduce_mean(tf.square(self.d_wavelons-self.g_wavelons)))
+        reduce_wavelet = tf.sqrt(tf.reduce_mean(tf.square(self.d_wavelons-self.g_wavelons)))
         self.d_loss_real = binary_cross_entropy_with_logits(tf.ones_like(self.D), self.D)
         self.d_loss_fake = binary_cross_entropy_with_logits(tf.zeros_like(self.D_), self.D_)
-        self.g_loss = binary_cross_entropy_with_logits(tf.ones_like(self.D_), self.D_)# + reduce_wavelet
+        self.g_loss = binary_cross_entropy_with_logits(tf.ones_like(self.D_), self.D_) + reduce_wavelet
 
         #self.d_loss_real_sum = tf.scalar_summary("d_loss_real", self.d_loss_real)
         #self.d_loss_fake_sum = tf.scalar_summary("d_loss_fake", self.d_loss_fake)
@@ -465,8 +465,8 @@ class DCGAN(object):
 
 
         
-        c1_dim=16
-        c2_dim=32
+        c1_dim=2
+        c2_dim=4
         c3_dim=64
         H = output
         H = tf.nn.dropout(H, self.keep_prob_d)
@@ -477,13 +477,13 @@ class DCGAN(object):
         H = tf.reshape(H, [self.batch_size, -1])
         H = linear(H, 1, "d_h_out")
 
-        output = fully_connected(output, network_size, 'd_fc_1')
-        output = tf.nn.relu(output)
-        output = fully_connected(output, network_size, 'd_fc_3')
-        output = tf.nn.relu(output)
-        output = fully_connected(output, network_size, 'd_fc_2')
-        output = tf.nn.relu(output)
-        output = linear(output, 1, "d_fc_out")
+        #output = fully_connected(output, network_size, 'd_fc_1')
+        #output = tf.nn.relu(output)
+        #output = fully_connected(output, network_size, 'd_fc_3')
+        #output = tf.nn.relu(output)
+        #output = fully_connected(output, network_size, 'd_fc_2')
+        #output = tf.nn.relu(output)
+        #output = linear(output, 1, "d_fc_out")
 
         #o2 = wavels
         #o2 = fully_connected(o2, 32, 'd_lstm_fc_0')
@@ -495,7 +495,7 @@ class DCGAN(object):
         #output = tf.nn.relu(output)
 
 
-        return tf.nn.sigmoid(output+H)
+        return tf.nn.sigmoid(H)
 
 
     def generator(self, y=None):
@@ -529,12 +529,12 @@ class DCGAN(object):
             with tf.variable_scope(scope):
                 z_scaled = tf.reshape(output, [self.batch_size, 1, self.z_dim]) * \
                                 tf.ones([WAVELONS//256, 1], dtype=tf.float32) #* scale
-                output = tf.reshape(z_scaled, [self.batch_size,  8, 8,4])
+                output = tf.reshape(z_scaled, [self.batch_size,  4, 4,4])
 
-                output = deconv2d(output, [self.batch_size, 16, 16, 2], name='g_d_2')
+                output = deconv2d(output, [self.batch_size, 8, 8, 2], name='g_d_2')
                 output = tf.nn.tanh(output)
                 output = tf.nn.dropout(output, self.keep_prob)
-                output = deconv2d(output, [self.batch_size,  32, 32,1], name='g_d_15')
+                output = deconv2d(output, [self.batch_size,  16, 16,1], name='g_d_15')
                 output = tf.reshape(output, [self.batch_size, -1])
                 if(fc > 0):
                     output = tf.nn.tanh(output)
@@ -548,13 +548,13 @@ class DCGAN(object):
         time = self.t
         output = self.z
         outputs = [
-                    #build_deconv(output, 'g_deconv1'),
+                    build_deconv(output, 'g_deconv1'),
                     #build_deconv(output, 'g_deconv2', fc=1, network_size=WAVELONS),
                     #build_deconv(output, 'g_deconv3', fc=2, network_size=WAVELONS),
                     #build_deconv(output, 'g_deconv4', fc=3, network_size=WAVELONS),
                     build_deep(output, 'g_deep1', layers=3, network_size=WAVELONS),
-                    #build_deep(output, 'g_deep2', layers=3, network_size=WAVELONS),
-                    #build_deep(output, 'g_deep3', layers=3, network_size=WAVELONS),
+                    build_deep(output, 'g_deep2', layers=3, network_size=WAVELONS),
+                    build_deep(output, 'g_deep3', layers=3, network_size=WAVELONS),
                     #build_deep(output, 'g_deep4', layers=3, network_size=WAVELONS),
                     #build_fc(output, scope="g_fc_1"),
                     #build_fc(output, scope="g_fc_2"), 
@@ -582,8 +582,8 @@ class DCGAN(object):
     
         killer = (killer-0.5)*16
         killer = tf.minimum(killer, 0)
-        #z_gates = tf.add(z_gates, killer)
-        z_gates = tf.nn.softmax(tf.square(z_gates))
+        z_gates = tf.add(z_gates, killer)
+        z_gates = tf.nn.sigmoid(tf.square(z_gates))
 
         self.z_gates = z_gates
         # debugging, creating samples
@@ -606,14 +606,16 @@ class DCGAN(object):
         print("OUTPUTS IS ", outputs)
 
         output = tf.nn.tanh(output)
+        self.g_wavelons = output
 
         # note, don't add a nonlinearity here.  
         # we are converting to raw data and need a linear interpolation
-        decode_weights = tf.get_variable('g_decode_weights', [output.get_shape()[1], LENGTH*CHANNELS], initializer=tf.truncated_normal_initializer(mean=0,stddev=0.02))
-        summer = tf.get_variable('g_summer', [LENGTH*CHANNELS])
+        #decode_weights = tf.get_variable('g_decode_weights', [output.get_shape()[1], LENGTH*CHANNELS], initializer=tf.constant_initializer(1))
+        decode_weights = tf.ones([output.get_shape()[1], LENGTH*CHANNELS])
+        summer = tf.get_variable('g_summer', [LENGTH*CHANNELS], initializer=tf.constant_initializer(0))
         output = tf.matmul(output,decode_weights) + summer
         output = tf.reshape(output, [self.batch_size, CHANNELS, LENGTH])
-        return output
+        return tf.nn.tanh(output)
 
 
     def sampler(self, y=None):
