@@ -585,7 +585,7 @@ class DCGAN(object):
         killer = (killer-0.5)*16
         killer = tf.minimum(killer, 0)
         z_gates = tf.add(z_gates, killer)
-        z_gates = tf.nn.sigmoid(tf.square(z_gates))
+        z_gates = tf.nn.sigmoid(z_gates)
 
         self.z_gates = z_gates
         # debugging, creating samples
