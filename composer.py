@@ -10,8 +10,8 @@ import hwav
 import tensorflow_wav
 
 
-dataset="rain"
-batch_size=512
+dataset="vg"
+batch_size=128
 checkpoint_dir="checkpoint"
 z_dim=64
 
@@ -46,9 +46,9 @@ with tf.Session() as sess:
         t *= 20
         scale = 4
         #z = np.zeros([dcgan.batch_size, dcgan.z_dim])
-        #z =  (np.random.uniform(-1,1.0,(dcgan.batch_size, dcgan.z_dim))*scale)
+        z =  (np.random.uniform(-1,1.0,(dcgan.batch_size, dcgan.z_dim))*scale)
         
-        z = np.random.uniform(-1, 1, [batch_size, dcgan.z_dim]) \
+        #z = np.random.uniform(-1, 1, [batch_size, dcgan.z_dim]) \
         #                                    .astype(np.float32)
         # = np.random.normal(0,2,(dcgan.batch_size, dcgan.z_dim))
         #z = np.zeros_like(z)

@@ -5,8 +5,8 @@ import numpy as np
 
 
 LENGTH = 1024
-WAVELONS = LENGTH//4
-def discriminator(input, state, cell, memory=16, name="lstm_discriminator", reuse=None):
+WAVELONS = LENGTH//4//16
+def discriminator(input, state, cell, memory=16, name="lstm_discriminator", reuse=None, batch_size=128):
      with tf.variable_scope(name):
         print("REUSE", reuse)
         cell_input = tf.split(1, WAVELONS, input)
@@ -26,9 +26,9 @@ def discriminator(input, state, cell, memory=16, name="lstm_discriminator", reus
 
         if(reuse):
            tf.get_variable_scope().reuse_variables()
-        output_w = tf.get_variable("output_w", [memory, 1])
+        output_w = tf.get_variable("output_w", [memory*len(cell_input), 1])
         output_b = tf.get_variable("output_b", [1])
-        output = tf.reshape(tf.concat(1, outputs), [-1, memory])
+        output = tf.reshape(tf.concat(1, outputs), [batch_size, memory*len(cell_input)])
         output = tf.nn.xw_plus_b(output, output_w, output_b)
         #return 1- tf.reduce_max(tf.square(tf.nn.softmax(output)), 1)
         return output, states[-1]
