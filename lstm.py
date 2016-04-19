@@ -6,7 +6,7 @@ import numpy as np
 
 LENGTH = 1024
 WAVELONS = LENGTH//4//16
-def discriminator(input, state, cell, memory=16, name="lstm_discriminator", reuse=None, batch_size=128):
+def discriminator(input, state, cell, memory=32, name="lstm_discriminator", reuse=None, batch_size=128):
      with tf.variable_scope(name):
         print("REUSE", reuse)
         cell_input = tf.split(1, WAVELONS, input)
@@ -14,7 +14,7 @@ def discriminator(input, state, cell, memory=16, name="lstm_discriminator", reus
         outputs = []
         i=0
         for inp in cell_input:
-            with tf.variable_scope('rnns'):
+            with tf.variable_scope(name+'_rnns'):
                 if i > 0:
                     tf.get_variable_scope().reuse_variables()
                 output, new_state = cell(inp, states[-1])
@@ -30,9 +30,10 @@ def discriminator(input, state, cell, memory=16, name="lstm_discriminator", reus
         output_b = tf.get_variable("output_b", [len(cell_input)])
         output = tf.reshape(tf.concat(1, outputs), [batch_size, memory*len(cell_input)])
         output = tf.nn.xw_plus_b(output, output_w, output_b)
-        #return tf.reduce_max(tf.square(tf.nn.sigmoid(output)), 1), states[-1]
-        return output, states[-1]
+        return tf.reduce_mean(tf.nn.sigmoid(output), 1), states[-1]
+        #return output, states[-1]
  
+
 def generator(input, name='lstm_generator', split=5, softmax=True):
      with tf.variable_scope(name):
         batch_size = input.get_shape()[0]

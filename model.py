@@ -14,7 +14,7 @@ from tensorflow.models.rnn import rnn_cell, seq2seq, rnn
 
 LENGTH = 1024
 WAVELONS = LENGTH//4
-FACTORY_GATES=1
+FACTORY_GATES=3
 CHANNELS=1
 
 class DCGAN(object):
@@ -64,7 +64,7 @@ class DCGAN(object):
         self.killer_mean = tf.constant(2.)
         self.killer_stddev=tf.constant(0.)
 
-        memory = 16
+        memory = 32
         cell = rnn_cell.BasicLSTMCell(memory)
         cell2 = rnn_cell.BasicLSTMCell(memory)
         self.d_cell= rnn_cell.MultiRNNCell([cell]*1)
@@ -490,7 +490,7 @@ class DCGAN(object):
         H = tf.nn.dropout(H, self.keep_prob_d)
         H = tf.nn.tanh(conv2d(H, c2_dim, name="d_conv2", k_w=3, k_h=3))
         H = tf.reshape(H, [self.batch_size, -1])
-        #H = linear(H, 1, "d_h_out")
+        Hout = linear(H, 1, "d_h_out")
 
         #output = fully_connected(output, network_size, 'd_fc_1')
         #output = tf.nn.relu(output)
@@ -507,7 +507,7 @@ class DCGAN(object):
         #o2 = fully_connected(o2, 32, 'd_lstm_fc_1')
         #o2 = tf.nn.relu(o2)
         #o2 = linear(o2, 1, "d_fc2_out")
-        disc, state = lstm.discriminator(o2,self.lstm_state, self.d_cell, reuse=reuse)
+        disc, state = lstm.discriminator(o2,self.lstm_state, self.d_cell, reuse=reuse, name='d_lstm_discrim')
         if(reuse):
             self.lstm_df_final_state=state
         else:
@@ -516,7 +516,7 @@ class DCGAN(object):
         #output = tf.nn.relu(output)
 
 
-        return tf.nn.sigmoid(disc)
+        return tf.nn.sigmoid(Hout)*disc#tf.nn.sigmoid(disc)
 
 
     def generator(self, y=None):
@@ -569,7 +569,8 @@ class DCGAN(object):
         time = self.t
         output = self.z
         outputs = [
-                    #build_deconv(output, 'g_deconv1'),
+                    build_deconv(output, 'g_deconv1'),
+                    build_deconv(output, 'g_deconv2'),
                     #build_deconv(output, 'g_deconv2', fc=1, network_size=WAVELONS),
                     #build_deconv(output, 'g_deconv3', fc=2, network_size=WAVELONS),
                     #build_deconv(output, 'g_deconv4', fc=3, network_size=WAVELONS),
@@ -604,6 +605,7 @@ class DCGAN(object):
         killer = (killer-0.5)*16
         killer = tf.minimum(killer, 0)
         z_gates = tf.add(z_gates, killer)
+        #z_gates = lstm.z_gates(z_gates)
         z_gates = tf.nn.sigmoid(z_gates)
 
         self.z_gates = z_gates
