@@ -500,9 +500,9 @@ class DCGAN(object):
         #output = tf.nn.relu(output)
         #output = linear(output, 1, "d_fc_out")
 
-        o2 = wavels
-        o2 = fully_connected(o2, WAVELONS, 'd_lstm_fc_1')
-        o2 = tf.nn.relu(o2)
+        o2 = H
+        #o2 = fully_connected(o2, WAVELONS, 'd_lstm_fc_1')
+        #o2 = tf.nn.relu(o2)
         o2 = fully_connected(o2, WAVELONS//16, 'd_lstm_fc_0')
         o2 = tf.nn.relu(o2)
         #o2 = fully_connected(o2, 32, 'd_lstm_fc_1')
