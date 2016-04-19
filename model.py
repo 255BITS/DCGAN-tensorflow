@@ -490,7 +490,7 @@ class DCGAN(object):
         H = tf.nn.dropout(H, self.keep_prob_d)
         H = tf.nn.tanh(conv2d(H, c2_dim, name="d_conv2", k_w=3, k_h=3))
         H = tf.reshape(H, [self.batch_size, -1])
-        H = linear(H, 1, "d_h_out")
+        #H = linear(H, 1, "d_h_out")
 
         #output = fully_connected(output, network_size, 'd_fc_1')
         #output = tf.nn.relu(output)
@@ -504,7 +504,6 @@ class DCGAN(object):
         #o2 = fully_connected(o2, WAVELONS, 'd_lstm_fc_1')
         #o2 = tf.nn.relu(o2)
         o2 = fully_connected(o2, WAVELONS//16, 'd_lstm_fc_0')
-        o2 = tf.nn.relu(o2)
         #o2 = fully_connected(o2, 32, 'd_lstm_fc_1')
         #o2 = tf.nn.relu(o2)
         #o2 = linear(o2, 1, "d_fc2_out")
