@@ -14,7 +14,7 @@ from tensorflow.models.rnn import rnn_cell, seq2seq, rnn
 
 LENGTH = 1024
 WAVELONS = LENGTH//4
-FACTORY_GATES=3
+FACTORY_GATES=1
 CHANNELS=1
 
 class DCGAN(object):
@@ -517,7 +517,7 @@ class DCGAN(object):
         #output = tf.nn.relu(output)
 
 
-        return tf.nn.sigmoid(disc+H)
+        return tf.nn.sigmoid(disc)
 
 
     def generator(self, y=None):
@@ -575,8 +575,8 @@ class DCGAN(object):
                     #build_deconv(output, 'g_deconv3', fc=2, network_size=WAVELONS),
                     #build_deconv(output, 'g_deconv4', fc=3, network_size=WAVELONS),
                     build_deep(output, 'g_deep1', layers=3, network_size=WAVELONS),
-                    build_deep(output, 'g_deep2', layers=3, network_size=WAVELONS),
-                    build_deep(output, 'g_deep3', layers=3, network_size=WAVELONS),
+                    #build_deep(output, 'g_deep2', layers=3, network_size=WAVELONS),
+                    #build_deep(output, 'g_deep3', layers=3, network_size=WAVELONS),
                     #build_deep(output, 'g_deep4', layers=3, network_size=WAVELONS),
                     #build_fc(output, scope="g_fc_1"),
                     #build_fc(output, scope="g_fc_2"), 

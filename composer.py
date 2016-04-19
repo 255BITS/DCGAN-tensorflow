@@ -44,7 +44,7 @@ with tf.Session() as sess:
         t *= 0.5*stepsize
         t += position
         t *= 20
-        scale = 4
+        scale = 1
         #z = np.zeros([dcgan.batch_size, dcgan.z_dim])
         z =  (np.random.uniform(-1,1.0,(dcgan.batch_size, dcgan.z_dim))*scale)
         

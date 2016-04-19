@@ -26,11 +26,11 @@ def discriminator(input, state, cell, memory=16, name="lstm_discriminator", reus
 
         if(reuse):
            tf.get_variable_scope().reuse_variables()
-        output_w = tf.get_variable("output_w", [memory*len(cell_input), 1])
-        output_b = tf.get_variable("output_b", [1])
+        output_w = tf.get_variable("output_w", [memory*len(cell_input), len(cell_input)])
+        output_b = tf.get_variable("output_b", [len(cell_input)])
         output = tf.reshape(tf.concat(1, outputs), [batch_size, memory*len(cell_input)])
         output = tf.nn.xw_plus_b(output, output_w, output_b)
-        #return 1- tf.reduce_max(tf.square(tf.nn.softmax(output)), 1)
+        #return tf.reduce_max(tf.square(tf.nn.sigmoid(output)), 1), states[-1]
         return output, states[-1]
  
 def generator(input, name='lstm_generator', split=5, softmax=True):
