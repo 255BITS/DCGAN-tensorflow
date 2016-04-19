@@ -10,12 +10,12 @@ import hwav
 import tensorflow_wav
 
 
-dataset="drums"
-batch_size=128
+dataset="drums-mono"
+batch_size=256
 checkpoint_dir="checkpoint"
 z_dim=64
 
-LENGTH=4096
+LENGTH=1024
 
 COUNT=10
 
@@ -45,13 +45,16 @@ with tf.Session() as sess:
         t += position
         t *= 20
         scale = 4
-        z = np.zeros([dcgan.batch_size, dcgan.z_dim])
+        #z = np.zeros([dcgan.batch_size, dcgan.z_dim])
         #z =  (np.random.uniform(-1,1.0,(dcgan.batch_size, dcgan.z_dim))*scale)
-        z = np.random.normal(0,4,(dcgan.batch_size, dcgan.z_dim))
+        
+        z = np.random.uniform(-1, 1, [batch_size, dcgan.z_dim]) \
+                                            .astype(np.float32)
+        #z = np.random.normal(0,2,(dcgan.batch_size, dcgan.z_dim))
         #z = np.zeros_like(z)
         #z = np.ones_like(z)*-4
         #z[:, min(i, 63)] = 1
-        #z[:, i] = 4
+        z[:, i] = 1
         #z[:, 0] = 5
         #z[:, 1] = 1
         print("Z is ", z)

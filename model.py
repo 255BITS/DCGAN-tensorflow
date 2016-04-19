@@ -11,7 +11,7 @@ import tensorflow_wav
 import lstm
 import hwav
 
-LENGTH = 4096
+LENGTH = 1024
 WAVELONS = LENGTH//4
 FACTORY_GATES=1
 CHANNELS=1
@@ -88,6 +88,8 @@ class DCGAN(object):
 
     def build_model(self):
 
+        self.z = tf.placeholder(tf.float32, [self.batch_size, self.z_dim],
+                                                name='z')
         self.wavs = tf.placeholder(tf.float32, [self.batch_size, CHANNELS, LENGTH],
                                     name='real_wavs')
         self.batch_flatten = self.normalize_wav(tf.reshape(self.wavs, [self.batch_size, -1]))
@@ -101,7 +103,7 @@ class DCGAN(object):
         # Draw one sample z from Gaussian distribution
         eps = tf.random_normal((self.batch_size, self.z_dim), 0, 1, dtype=tf.float32)
         # z = mu + sigma*epsilon
-        self.z = tf.add(self.z_mean, tf.mul(tf.sqrt(tf.exp(self.z_log_sigma_sq)), eps))
+        #self.z = tf.add(self.z_mean, tf.mul(tf.sqrt(tf.exp(self.z_log_sigma_sq)), eps))
         print(eps)
 
  
@@ -121,10 +123,10 @@ class DCGAN(object):
         #self.d_sum = tf.histogram_summary("d", self.D)
         #self.d__sum = tf.histogram_summary("d_", self.D_)
 
-        reduce_wavelet = tf.sqrt(tf.reduce_mean(tf.square(self.d_wavelons-self.g_wavelons)))
+        #reduce_wavelet = tf.sqrt(tf.reduce_mean(tf.square(self.d_wavelons-self.g_wavelons)))
         self.d_loss_real = binary_cross_entropy_with_logits(tf.ones_like(self.D), self.D)
         self.d_loss_fake = binary_cross_entropy_with_logits(tf.zeros_like(self.D_), self.D_)
-        self.g_loss = binary_cross_entropy_with_logits(tf.ones_like(self.D_), self.D_) + reduce_wavelet
+        self.g_loss = binary_cross_entropy_with_logits(tf.ones_like(self.D_), self.D_)# + reduce_wavelet
 
         #self.d_loss_real_sum = tf.scalar_summary("d_loss_real", self.d_loss_real)
         #self.d_loss_fake_sum = tf.scalar_summary("d_loss_fake", self.d_loss_fake)
@@ -253,12 +255,14 @@ class DCGAN(object):
                 t *= 20
 
                 idx+=1
+                z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
+                                                    .astype(np.float32)
                 #print("Min:", np.min(batch_wavs))
                 #print("Max:", np.max(batch_wavs))
 
 
-                _ = self.sess.run((vae_optim, self.vae_loss),
-                        feed_dict={self.t: t, self.wavs: batch_wavs})
+                #_ = self.sess.run((vae_optim, self.vae_loss),
+                #        feed_dict={self.t: t, self.wavs: batch_wavs})
                 #if(errD_fake > 10):
                 #    errd_range = 3
                 #elif(errD_fake > 8):
@@ -270,7 +274,7 @@ class DCGAN(object):
                     #print("discrim ", errd_range)
                     # Update D network
                     _= self.sess.run([d_optim],
-                            feed_dict={self.t: t, self.wavs: batch_wavs })
+                            feed_dict={self.t: t, self.wavs: batch_wavs, self.z: z })
                     #self.writer.add_summary(summary_str, counter)
 
                 # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
@@ -284,23 +288,23 @@ class DCGAN(object):
                     #print("generating ", errg_range)
                     # Update G network
                     _= self.sess.run([g_optim],
-                            feed_dict={self.t: t, self.wavs: batch_wavs })
+                            feed_dict={self.t: t, self.wavs: batch_wavs, self.z: z })
                     #self.writer.add_summary(summary_str, counter)
 
-                errD_fake = self.d_loss_fake.eval({self.t: t, self.wavs: batch_wavs})
-                errD_real = self.d_loss_real.eval({self.t: t, self.wavs: batch_wavs})
-                errG = self.g_loss.eval({self.t: t, self.wavs: batch_wavs})
-                errVAE = self.vae_loss.eval({self.t: t, self.wavs: batch_wavs})
-                rG = self.G.eval({self.t: t, self.wavs: batch_wavs})
-                rZ = self.z.eval({self.t: t, self.wavs: batch_wavs})
-                z_gates = self.z_gates.eval({self.t: t, self.wavs: batch_wavs})
+                errD_fake = self.d_loss_fake.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
+                errD_real = self.d_loss_real.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
+                errG = self.g_loss.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
+                #errVAE = self.vae_loss.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
+                rG = self.G.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
+                #rZ = self.z.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
+                z_gates = self.z_gates.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
                 #H4 = self.h4.eval({self.wavs: batch_wavs})
                 #bf = self.batch_flatten.eval({self.wavs: batch_wavs})
                 #brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
                 #z = self.z.eval({self.wavs: batch_wavs})
 
                 #print("H4", np.min(H4), np.max(H4))
-                print("z", np.min(rZ), np.max(rZ))
+                #print("z", np.min(rZ), np.max(rZ))
                 print("z_gates", ["%.03f" % zg for zg in z_gates[0][:]])
                 #print("bf", np.min(bf), np.max(bf))
                 #print("brf", np.min(brf), np.max(brf))
@@ -309,7 +313,7 @@ class DCGAN(object):
                 counter += 1
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f vae_loss: %.8f" \
                     % (epoch, idx, batch_idxs,
-                        time.time() - start_time, errD_fake, errD_real, errG, errVAE))
+                        time.time() - start_time, errD_fake, errD_real, errG, -1))
 
                 SAVE_COUNT=1000
                 
@@ -367,14 +371,14 @@ class DCGAN(object):
                 #print("Batch ", counter)
                 if np.mod(counter, SAVE_COUNT) == SAVE_COUNT-3:
                     print("Saving after next batch")
-                if(np.isnan(errVAE)):
-                    diverged_count += 1
-                    print("Error rate above threshold")
-                    if(diverged_count > 1):
-                        print("Loading from last checkpoint")
-                        loaded = self.load(self.checkpoint_dir)
-                        diverged_count = 0
-                        print("loaded", loaded)
+                #if(np.isnan(errVAE)):
+                #    diverged_count += 1
+                #    print("Error rate above threshold")
+                #    if(diverged_count > 1):
+                #        print("Loading from last checkpoint")
+                #        loaded = self.load(self.checkpoint_dir)
+                #        diverged_count = 0
+                #        print("loaded", loaded)
 
                 else:
                     diverged_count = 0
@@ -408,18 +412,42 @@ class DCGAN(object):
 
     def create_wavelons_from_raw(self,output, wavelets):
         dim_in = output.get_shape()[1]
-        def gaus(output, translation, dilation):
-            #input = (input - translation)/dilation
+        def initial_dt_tree(a, b, n):
+            if(n <=1):
+                return []
+            t = (a+b)/2
+            lam = (b-a)/2
+            tree_left = initial_dt_tree(a, t, n-1)
+            tree_right = initial_dt_tree(t, b, n-1)
+            concat = [[t, lam]] 
+            if(len(tree_left) > 0):
+                concat += tree_left
+            if(len(tree_right) > 0):
+                concat+=tree_right
+            return concat
+
+        def mother(input):
             #return (-input)*(-tf.exp(tf.square(input)))
             #mexican hat
-            square = tf.square(output)
+            square = tf.square(input)
             return (1-square)*tf.exp(-square/2)
+
+            #mortlet
+            #return 0.75112554446494 * tf.cos(input * 5.336446256636997) * tf.exp((-tf.square(input)) / 2)
+
         with tf.variable_scope('d_wnn_encode'):
-            translation = tf.get_variable('d_translation', [1, wavelets], initializer = tf.random_uniform_initializer())
-            dilation = tf.get_variable('d_dilation', [1, wavelets], initializer = tf.random_uniform_initializer())
+            full_resolutions = math.log(wavelets)/math.log(2)
+            tree = initial_dt_tree(-1,1, full_resolutions)
+            print(tree)
+            d_c = [leaf[1] for leaf in tree]
+            t_c = [leaf[0] for leaf in tree]
+            print('yer vals', np.shape(d_c), np.shape(t_c))
+            translation = tf.get_variable('translation', [1, wavelets], initializer = tf.constant_initializer(t_c))
+            dilation = tf.get_variable('dilation', [1, wavelets], initializer = tf.constant_initializer(d_c))
             w = tf.get_variable('w', [dim_in,wavelets])
-            input_proj = tf.matmul(output, w)
-            return gaus(input_proj, translation, dilation)
+            input_proj = (tf.matmul(output, w) - translation)/dilation
+            return mother(input_proj)
+
 
 
     def discriminator(self, wav, reuse=False, y=None):
@@ -442,7 +470,7 @@ class DCGAN(object):
         c3_dim=64
         H = output
         H = tf.nn.dropout(H, self.keep_prob_d)
-        H = tf.reshape(H, [self.batch_size, 32,32, 1])
+        H = tf.reshape(H, [self.batch_size, 16,16, 1])
         H = tf.nn.tanh(conv2d(H, c1_dim, name="d_conv1", k_w=5, k_h=5))
         H = tf.nn.dropout(H, self.keep_prob_d)
         H = tf.nn.tanh(conv2d(H, c2_dim, name="d_conv2", k_w=3, k_h=3))
@@ -579,12 +607,9 @@ class DCGAN(object):
 
         output = tf.nn.tanh(output)
 
-        wavelon_mul = tf.get_variable('g_wavelon_weights', [output.get_shape()[1], WAVELONS], initializer=tf.truncated_normal_initializer(mean=0,stddev=0.02 ))
-        output = tf.matmul(output, wavelon_mul)
-        self.g_wavelons = output
         # note, don't add a nonlinearity here.  
         # we are converting to raw data and need a linear interpolation
-        decode_weights = tf.get_variable('g_decode_weights', [output.get_shape()[1], LENGTH*CHANNELS], initializer=tf.truncated_normal_initializer(mean=0,stddev=20000 ))
+        decode_weights = tf.get_variable('g_decode_weights', [output.get_shape()[1], LENGTH*CHANNELS], initializer=tf.truncated_normal_initializer(mean=0,stddev=0.02))
         summer = tf.get_variable('g_summer', [LENGTH*CHANNELS])
         output = tf.matmul(output,decode_weights) + summer
         output = tf.reshape(output, [self.batch_size, CHANNELS, LENGTH])

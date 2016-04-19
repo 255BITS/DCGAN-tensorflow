@@ -9,6 +9,7 @@ import math
 import pickle
 import mdct
 import pywt
+import soundfile as sf
 
 FRAME_SIZE=(64/2048)
 HOP=(2048-64)/(2048*64)
@@ -70,7 +71,6 @@ def convert_mlaudio_to_wav(mlaudio):
     print("shape of result:", np.shape(result))
     return mlaudio
 
-
 # Returns the file object in complex64
 def get_wav(path):
 
@@ -83,9 +83,11 @@ def get_wav(path):
     results['framerate']=wav.getframerate()
     results['nframes']=wav.getnframes()
     results['compname']=wav.getcompname()
-    processed = np.array(data).astype(np.int16, copy=False)
+    #processed = np.array(data).astype(np.int16, copy=False)
+    processed = sf.read(path)[0]
     results['data']=processed
     return results
+
 
 def save_wav(in_wav, path):
 
@@ -100,8 +102,11 @@ def save_wav(in_wav, path):
 
     wav.setcomptype('NONE', 'processed')
 
-    processed = np.array(in_wav['data'], dtype=np.int16)
-    wav.writeframes(processed)
+    #processed = np.array(in_wav['data'], dtype=np.int16)
+    #wav.writeframes(processed)
+    sf.write(path, in_wav['data'], in_wav['rate'])
+
+
 
 def save_pre(in_wav, path):
     f = open(path, "wb")
