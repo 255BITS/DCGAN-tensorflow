@@ -10,10 +10,11 @@ from utils import *
 import tensorflow_wav
 import lstm
 import hwav
+from tensorflow.models.rnn import rnn_cell, seq2seq, rnn
 
 LENGTH = 1024
 WAVELONS = LENGTH//4
-FACTORY_GATES=4
+FACTORY_GATES=3
 CHANNELS=1
 
 class DCGAN(object):
@@ -62,6 +63,14 @@ class DCGAN(object):
         #disabled
         self.killer_mean = tf.constant(1.)
         self.killer_stddev=tf.constant(4.)
+
+        memory = 16
+        cell = rnn_cell.BasicLSTMCell(memory)
+        cell2 = rnn_cell.BasicLSTMCell(memory)
+        self.d_cell= rnn_cell.MultiRNNCell([cell]*1)
+        self.lstm_d_state = self.d_cell.zero_state(batch_size=batch_size, dtype=tf.float32)
+        self.lstm_df_state = self.d_cell.zero_state(batch_size=batch_size, dtype=tf.float32)
+        self.lstm_state = tf.get_variable('lstm_state', [batch_size, memory*2])
 
 
         # batch normalization : deals with poor initialization helps gradient flow
@@ -113,9 +122,11 @@ class DCGAN(object):
         self.batch_reconstruct_flatten = self.normalize_wav(tf.reshape(self.G, [self.batch_size, -1]))
 
         print("G is", self.G.get_shape())
+        self.lstm_state.assign(self.lstm_d_state)
         self.D = self.discriminator(d_wav, reuse=None)
 
         self.sampler = self.sampler()
+        self.lstm_state.assign(self.lstm_df_state)
         self.D_ = self.discriminator(self.G, reuse=True)
         
         self.create_vae_loss_terms()
@@ -225,6 +236,8 @@ class DCGAN(object):
             print(" [!] Load failed...")
         print('epoch', config.epoch)
 
+        lstm_d_state = self.lstm_d_state.eval()
+        lstm_df_state = self.lstm_df_state.eval()
         for epoch in range(config.epoch):
             batch_files = glob(os.path.join("./training", "*.wav"))
             np.random.shuffle(batch_files)
@@ -273,8 +286,8 @@ class DCGAN(object):
                 for repeat in range(errd_range):
                     #print("discrim ", errd_range)
                     # Update D network
-                    _= self.sess.run([d_optim],
-                            feed_dict={self.t: t, self.wavs: batch_wavs, self.z: z })
+                    _, lstm_d_state, lstm_df_state= self.sess.run([d_optim, self.lstm_d_final_state, self.lstm_df_final_state],
+                            feed_dict={self.t: t, self.wavs: batch_wavs, self.z: z, self.lstm_d_state:lstm_d_state, self.lstm_df_state:lstm_df_state })
                     #self.writer.add_summary(summary_str, counter)
 
                 # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
@@ -487,17 +500,22 @@ class DCGAN(object):
         #output = tf.nn.relu(output)
         #output = linear(output, 1, "d_fc_out")
 
-        #o2 = wavels
-        #o2 = fully_connected(o2, 32, 'd_lstm_fc_0')
-        #o2 = tf.nn.relu(o2)
+        o2 = wavels
+        o2 = fully_connected(o2, WAVELONS, 'd_lstm_fc_0')
+        o2 = tf.nn.relu(o2)
         #o2 = fully_connected(o2, 32, 'd_lstm_fc_1')
         #o2 = tf.nn.relu(o2)
         #o2 = linear(o2, 1, "d_fc2_out")
-        #disc = lstm.discriminator(o2, 32, 'd_lstm0')
+        disc, state = lstm.discriminator(o2,self.lstm_state, self.d_cell, reuse=reuse)
+        if(reuse):
+            self.lstm_df_final_state=state
+        else:
+            self.lstm_d_final_state=state
+
         #output = tf.nn.relu(output)
 
 
-        return tf.nn.sigmoid(H)
+        return tf.nn.sigmoid(disc)
 
 
     def generator(self, y=None):
@@ -550,7 +568,7 @@ class DCGAN(object):
         time = self.t
         output = self.z
         outputs = [
-                    build_deconv(output, 'g_deconv1'),
+                    #build_deconv(output, 'g_deconv1'),
                     #build_deconv(output, 'g_deconv2', fc=1, network_size=WAVELONS),
                     #build_deconv(output, 'g_deconv3', fc=2, network_size=WAVELONS),
                     #build_deconv(output, 'g_deconv4', fc=3, network_size=WAVELONS),

@@ -4,20 +4,34 @@ from ops import linear,lrelu
 import numpy as np
 
 
-def discriminator(input, vocab_size, name="lstm_discriminator"):
+LENGTH = 1024
+WAVELONS = LENGTH//4
+def discriminator(input, state, cell, memory=16, name="lstm_discriminator", reuse=None):
      with tf.variable_scope(name):
-        cell_input = [input]
-        zeros = [tf.zeros_like(input)]
-        memory = 128
-        cell = rnn_cell.BasicLSTMCell(memory)
-        stacked_cell = rnn_cell.MultiRNNCell([cell]*2)
-        cell_input = [input]
-        outputs, state = rnn.rnn(stacked_cell, cell_input, dtype=tf.float32)
-        print("Discrim output", outputs)
-        output = outputs[0]
-        #w = tf.get_variable('d_softmax_w', [memory, vocab_size], dtype=tf.float32, initializer=tf.truncated_normal_initializer(0, 0.1))
-        #b = tf.get_variable('d_softmax_b', [vocab_size], dtype=tf.float32, initializer=tf.constant_initializer(0))
-        return 1- tf.reduce_max(tf.square(tf.nn.softmax(output)), 1)
+        print("REUSE", reuse)
+        cell_input = tf.split(1, WAVELONS, input)
+        states = [state]
+        outputs = []
+        i=0
+        for inp in cell_input:
+            with tf.variable_scope('rnns'):
+                if i > 0:
+                    tf.get_variable_scope().reuse_variables()
+                output, new_state = cell(inp, states[-1])
+
+
+                outputs.append(output)
+                states.append(new_state)
+                i+=1
+
+        if(reuse):
+           tf.get_variable_scope().reuse_variables()
+        output_w = tf.get_variable("output_w", [memory, 1])
+        output_b = tf.get_variable("output_b", [1])
+        output = tf.reshape(tf.concat(1, outputs), [-1, memory])
+        output = tf.nn.xw_plus_b(output, output_w, output_b)
+        #return 1- tf.reduce_max(tf.square(tf.nn.softmax(output)), 1)
+        return output, states[-1]
  
 def generator(input, name='lstm_generator', split=5, softmax=True):
      with tf.variable_scope(name):
