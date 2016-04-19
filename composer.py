@@ -10,8 +10,8 @@ import hwav
 import tensorflow_wav
 
 
-dataset="drums-mono"
-batch_size=256
+dataset="vg"
+batch_size=512
 checkpoint_dir="checkpoint"
 z_dim=64
 

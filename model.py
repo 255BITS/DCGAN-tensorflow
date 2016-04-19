@@ -296,6 +296,7 @@ class DCGAN(object):
                 errG = self.g_loss.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
                 #errVAE = self.vae_loss.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
                 rG = self.G.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
+                summer = self.summer.eval()
                 #rZ = self.z.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
                 z_gates = self.z_gates.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
                 #H4 = self.h4.eval({self.wavs: batch_wavs})
@@ -308,7 +309,8 @@ class DCGAN(object):
                 print("z_gates", ["%.03f" % zg for zg in z_gates[0][:]])
                 #print("bf", np.min(bf), np.max(bf))
                 #print("brf", np.min(brf), np.max(brf))
-                print("rG", np.min(rG), np.max(rG))
+                print("rG", np.min(rG), np.max(rG), np.mean(rG), np.std(rG))
+                print("summer", np.min(summer), np.max(summer))
 
                 counter += 1
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f vae_loss: %.8f" \
@@ -465,8 +467,8 @@ class DCGAN(object):
 
 
         
-        c1_dim=2
-        c2_dim=4
+        c1_dim=8
+        c2_dim=16
         c3_dim=64
         H = output
         H = tf.nn.dropout(H, self.keep_prob_d)
@@ -610,12 +612,13 @@ class DCGAN(object):
 
         # note, don't add a nonlinearity here.  
         # we are converting to raw data and need a linear interpolation
-        #decode_weights = tf.get_variable('g_decode_weights', [output.get_shape()[1], LENGTH*CHANNELS], initializer=tf.constant_initializer(1))
-        decode_weights = tf.ones([output.get_shape()[1], LENGTH*CHANNELS])
+        decode_weights = tf.get_variable('g_decode_weights', [output.get_shape()[1], LENGTH*CHANNELS], initializer=tf.truncated_normal_initializer(stddev=0.03))
+        #decode_weights = tf.ones([output.get_shape()[1], LENGTH*CHANNELS])
         summer = tf.get_variable('g_summer', [LENGTH*CHANNELS], initializer=tf.constant_initializer(0))
+        self.summer = summer
         output = tf.matmul(output,decode_weights) + summer
         output = tf.reshape(output, [self.batch_size, CHANNELS, LENGTH])
-        return tf.nn.tanh(output)
+        return output#tf.nn.tanh(output)
 
 
     def sampler(self, y=None):
