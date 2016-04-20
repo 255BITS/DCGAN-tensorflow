@@ -501,8 +501,8 @@ class DCGAN(object):
         #output = linear(output, 1, "d_fc_out")
 
         o2 = H
-        #o2 = fully_connected(o2, WAVELONS, 'd_lstm_fc_1')
-        #o2 = tf.nn.relu(o2)
+        o2 = fully_connected(o2, WAVELONS, 'd_lstm_fc_1')
+        o2 = tf.nn.relu(o2)
         o2 = fully_connected(o2, WAVELONS//16, 'd_lstm_fc_0')
         #o2 = fully_connected(o2, 32, 'd_lstm_fc_1')
         #o2 = tf.nn.relu(o2)
@@ -516,7 +516,7 @@ class DCGAN(object):
         #output = tf.nn.relu(output)
 
 
-        return tf.nn.sigmoid(Hout)*disc#tf.nn.sigmoid(disc)
+        return tf.nn.sigmoid(disc)#Hout)*disc#tf.nn.sigmoid(disc)
 
 
     def generator(self, y=None):
@@ -570,12 +570,12 @@ class DCGAN(object):
         output = self.z
         outputs = [
                     build_deconv(output, 'g_deconv1'),
-                    build_deconv(output, 'g_deconv2'),
+                    #build_deconv(output, 'g_deconv2'),
                     #build_deconv(output, 'g_deconv2', fc=1, network_size=WAVELONS),
                     #build_deconv(output, 'g_deconv3', fc=2, network_size=WAVELONS),
                     #build_deconv(output, 'g_deconv4', fc=3, network_size=WAVELONS),
                     build_deep(output, 'g_deep1', layers=3, network_size=WAVELONS),
-                    #build_deep(output, 'g_deep2', layers=3, network_size=WAVELONS),
+                    build_deep(output, 'g_deep2', layers=3, network_size=WAVELONS),
                     #build_deep(output, 'g_deep3', layers=3, network_size=WAVELONS),
                     #build_deep(output, 'g_deep4', layers=3, network_size=WAVELONS),
                     #build_fc(output, scope="g_fc_1"),
