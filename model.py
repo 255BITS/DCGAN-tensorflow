@@ -451,14 +451,20 @@ class DCGAN(object):
             #return 0.75112554446494 * tf.cos(input * 5.336446256636997) * tf.exp((-tf.square(input)) / 2)
 
         with tf.variable_scope('d_wnn_encode'):
-            full_resolutions = math.log(wavelets)/math.log(2)
+            full_resolutions = math.log(wavelets*2)/math.log(2)
             tree = initial_dt_tree(-1,1, full_resolutions)
             print(tree)
             d_c = [leaf[1] for leaf in tree]
+            d_c.append(0.01)
             t_c = [leaf[0] for leaf in tree]
-            print('yer vals', np.shape(d_c), np.shape(t_c))
-            translation = tf.get_variable('translation', [1, wavelets], initializer = tf.constant_initializer(t_c))
-            dilation = tf.get_variable('dilation', [1, wavelets], initializer = tf.constant_initializer(d_c))
+            t_c.append(0.01)
+            print('yer vals', len(d_c), len(t_c))
+            t_c = np.tile(t_c,self.batch_size)
+            d_c = np.tile(d_c,self.batch_size)
+            #translation = tf.reshape(tf.constant(t_c, dtype=tf.float32), [128,256])
+            #dilation = tf.reshape(tf.constant(d_c, dtype=tf.float32), [128,256])
+            translation = tf.get_variable('translation', [self.batch_size, wavelets], initializer = tf.constant_initializer(t_c))
+            dilation = tf.get_variable('dilation', [self.batch_size, wavelets], initializer = tf.constant_initializer(d_c))
             w = tf.get_variable('w', [dim_in,wavelets])
             input_proj = (tf.matmul(output, w) - translation)/dilation
             return mother(input_proj)
@@ -480,17 +486,17 @@ class DCGAN(object):
 
 
         
-        c1_dim=8
-        c2_dim=16
+        c1_dim=16
+        c2_dim=32
         c3_dim=64
         H = output
         H = tf.nn.dropout(H, self.keep_prob_d)
         H = tf.reshape(H, [self.batch_size, 16,16, 1])
-        H = tf.nn.tanh(conv2d(H, c1_dim, name="d_conv1", k_w=5, k_h=5))
+        H = tf.nn.relu(conv2d(H, c1_dim, name="d_conv1", k_w=5, k_h=5))
         H = tf.nn.dropout(H, self.keep_prob_d)
-        H = tf.nn.tanh(conv2d(H, c2_dim, name="d_conv2", k_w=3, k_h=3))
+        H = tf.nn.relu(conv2d(H, c2_dim, name="d_conv2", k_w=3, k_h=3))
         H = tf.reshape(H, [self.batch_size, -1])
-        Hout = linear(H, 1, "d_h_out")
+        Hout = linear(H, 32, "d_h_out")
 
         #output = fully_connected(output, network_size, 'd_fc_1')
         #output = tf.nn.relu(output)
@@ -515,8 +521,9 @@ class DCGAN(object):
 
         #output = tf.nn.relu(output)
 
-
-        return tf.nn.sigmoid(disc)#Hout)*disc#tf.nn.sigmoid(disc)
+        Hout = tf.reshape(Hout, disc.get_shape())
+        #return tf.nn.sigmoid(disc)/2+tf.nn.sigmoid(Hout)/2#*disc#tf.nn.sigmoid(disc)
+        return tf.nn.sigmoid(disc+Hout)#*disc#tf.nn.sigmoid(disc)
 
 
     def generator(self, y=None):
