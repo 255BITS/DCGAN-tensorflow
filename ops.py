@@ -104,7 +104,7 @@ def lrelu(x, leak=0.2, name="lrelu"):
         f2 = 0.5 * (1 - leak)
         return f1 * x + f2 * abs(x)
 
-def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=False):
+def linear(input_, output_size, scope=None, stddev=0.002, bias_start=0.0, with_w=False):
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "Linear"):
@@ -117,7 +117,7 @@ def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=
         else:
             return tf.matmul(input_, matrix) + bias
 
-def fully_connected(input_, output_size, scope=None, stddev=0.02, with_bias = True, bias_start=0.0):
+def fully_connected(input_, output_size, scope=None, stddev=0.002, with_bias = True, bias_start=0.0):
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "FC"):

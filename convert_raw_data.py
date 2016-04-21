@@ -186,7 +186,8 @@ if __name__ == '__main__':
         #add_to_training('datasets/youtube-drums-2')
         #add_to_training('datasets/youtube-drums-120bpm-1')
         #add_to_training('datasets/rain')
-        add_to_training('datasets/videogame')
+        #add_to_training('datasets/videogame')
+        add_to_training('datasets/metronomes')
 
         #add_to_training("datasets/youtube-drums-120bpm-1")
         #add_to_training("youtube/5")

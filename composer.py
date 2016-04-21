@@ -10,7 +10,7 @@ import hwav
 import tensorflow_wav
 
 
-dataset="vg"
+dataset="metronome"
 batch_size=128
 checkpoint_dir="checkpoint"
 z_dim=64
@@ -46,19 +46,18 @@ with tf.Session() as sess:
         t *= 20
         scale = 1
         #z = np.zeros([dcgan.batch_size, dcgan.z_dim])
-        z =  (np.random.uniform(-1,1.0,(dcgan.batch_size, dcgan.z_dim))*scale)
-        
-        #z = np.random.uniform(-1, 1, [batch_size, dcgan.z_dim]) \
-        #                                    .astype(np.float32)
-        # = np.random.normal(0,2,(dcgan.batch_size, dcgan.z_dim))
-        #z = np.zeros_like(z)
+        #z =  (np.random.uniform(-1,1.0,(dcgan.batch_size, dcgan.z_dim))*scale)
+        #
+        z = np.random.uniform(-1, 1, [batch_size, dcgan.z_dim]) \
+                                            .astype(np.float32)
+        #z= np.random.normal(0,2,(dcgan.batch_size, dcgan.z_dim))
         #z = np.ones_like(z)*-4
+        #z = np.zeros_like(z)
         #z[:, min(i, 63)] = 1
-        #z[:, i] = 1
         #z[:, 0] = 5
-        #z[:, 1] = 1
+        #for j in range(len(z)):
+        #    z[j,i]=j%3*-1
         print("Z is ", z)
-        #z[:, :(i-1)] = -3
         print(i)
         audio = dcgan.sample(t,z)
         audio = np.reshape(audio, (-1, 1, LENGTH))

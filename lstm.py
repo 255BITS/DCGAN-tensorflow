@@ -33,27 +33,33 @@ def discriminator(input, state, cell, memory=16, name="lstm_discriminator", reus
         #return 1- tf.reduce_max(tf.square(tf.nn.softmax(output)), 1)
         return output, states[-1]
  
-def generator(input, name='lstm_generator', split=5, softmax=True):
-     with tf.variable_scope(name):
-        batch_size = input.get_shape()[0]
-        vocab_size = input.get_shape()[1]
-        cell_input = [input]#tf.split(1, split, input)
-        zeros = [tf.zeros_like(input)]
-        memory = 128
-        cell = rnn_cell.BasicLSTMCell(memory)
-        stacked_cell = rnn_cell.MultiRNNCell([cell]*1)
-        outputs, state = rnn.rnn(stacked_cell, cell_input, dtype=tf.float32)
-        print(outputs)
-        output=outputs[0]
-        print("output is", output)
+def z_gates(input, state, cell, memory=32, name='g_lstm_generator', softmax=True, batch_size=-1):
+    with tf.variable_scope(name):
+       input_dim = input.get_shape()[1]
+       cell_input = tf.split(1, input_dim, input)
+       states = [state]
+       outputs = []
+       i=0
+       for inp in cell_input:
+           with tf.variable_scope(name+'rnns'):
+               if i > 0:
+                   tf.get_variable_scope().reuse_variables()
+               output, new_state = cell(inp, states[-1])
 
-        w = tf.get_variable('g_softmax_w', [memory, vocab_size], dtype=tf.float32, initializer=tf.truncated_normal_initializer(0, 0.1))
-        b = tf.get_variable('g_softmax_b', [vocab_size], dtype=tf.float32, initializer=tf.constant_initializer(0))
-        if softmax:
-            return tf.nn.softmax(tf.matmul(output, w)+b)
-        else:
-            return tf.matmul(output, w)+b
-       
+
+               outputs.append(output)
+               states.append(new_state)
+               i+=1
+
+       output = tf.concat(1, outputs)
+       output = tf.reshape(output, [batch_size, -1])
+       output_w = tf.get_variable("output_w", [output.get_shape()[1], 256], initializer=tf.random_normal_initializer(stddev=0.003))
+       output_b = tf.get_variable("output_b", [256])
+       output = tf.nn.xw_plus_b(output, output_w, output_b)
+       #output = tf.matmul(output, output_w)
+       print("shape of output is ", output)
+       return output, states[-1]
+      
 def seq2seq_graph(input, predicted):
     with tf.variable_scope("lstm_generator"):
         cell_input = [input]

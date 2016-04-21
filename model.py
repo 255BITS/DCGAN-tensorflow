@@ -11,16 +11,17 @@ import tensorflow_wav
 import lstm
 import hwav
 from tensorflow.models.rnn import rnn_cell, seq2seq, rnn
+import matplotlib.pyplot as plt
 
 LENGTH = 1024
 WAVELONS = LENGTH//4
-FACTORY_GATES=3
+FACTORY_GATES=1
 CHANNELS=1
 
 class DCGAN(object):
     def __init__(self, sess, is_crop=True,
                  batch_size=64, sample_size = 2, t_dim=64,
-                 y_dim=None, z_dim=64, gf_dim=64, df_dim=64,
+                 y_dim=None, z_dim=32, gf_dim=64, df_dim=64,
                  gfc_dim=1024, dfc_dim=1024, c_dim=1, dataset_name='default',
                  checkpoint_dir='checkpoint'):
         """
@@ -42,6 +43,7 @@ class DCGAN(object):
         self.sample_size = sample_size
         self.t_dim = t_dim
 
+        self.sample_z_gates_state = None
         self.net_size_q=WAVELONS
         self.keep_prob = 1
         self.keep_prob_d = 1
@@ -61,18 +63,20 @@ class DCGAN(object):
         self.factory_gate = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
 
         #disabled
-        self.killer_mean = tf.constant(2.)
+        self.killer_mean = tf.constant(4.)
         self.killer_stddev=tf.constant(0.)
 
-        memory = 32
+        memory = 16
         cell = rnn_cell.BasicLSTMCell(memory)
-        cell2 = rnn_cell.BasicLSTMCell(memory)
         self.d_cell= rnn_cell.MultiRNNCell([cell]*1)
         self.lstm_d_state = self.d_cell.zero_state(batch_size=batch_size, dtype=tf.float32)
         self.lstm_df_state = self.d_cell.zero_state(batch_size=batch_size, dtype=tf.float32)
         self.lstm_state = tf.get_variable('lstm_state', [batch_size, memory*2])
 
-
+        g_memory = 32
+        cellg = rnn_cell.BasicLSTMCell(g_memory)
+        self.g_cell= rnn_cell.MultiRNNCell([cellg]*1)
+        self.z_gates_state = self.g_cell.zero_state(batch_size=batch_size, dtype=tf.float32)
         # batch normalization : deals with poor initialization helps gradient flow
         self.d_bn1 = batch_norm(batch_size, name='d_bn1')
         self.d_bn2 = batch_norm(batch_size, name='d_bn2')
@@ -238,6 +242,7 @@ class DCGAN(object):
 
         lstm_d_state = self.lstm_d_state.eval()
         lstm_df_state = self.lstm_df_state.eval()
+        z_gates_state = self.z_gates_state.eval()
         for epoch in range(config.epoch):
             batch_files = glob(os.path.join("./training", "*.wav"))
             np.random.shuffle(batch_files)
@@ -286,8 +291,8 @@ class DCGAN(object):
                 for repeat in range(errd_range):
                     #print("discrim ", errd_range)
                     # Update D network
-                    _, lstm_d_state, lstm_df_state= self.sess.run([d_optim, self.lstm_d_final_state, self.lstm_df_final_state],
-                            feed_dict={self.t: t, self.wavs: batch_wavs, self.z: z, self.lstm_d_state:lstm_d_state, self.lstm_df_state:lstm_df_state })
+                    _, lstm_d_state, lstm_df_state, z_gates_state= self.sess.run([d_optim, self.lstm_d_final_state, self.lstm_df_final_state, self.final_z_gates_state],
+                            feed_dict={self.t: t, self.wavs: batch_wavs, self.z: z, self.lstm_d_state:lstm_d_state, self.lstm_df_state:lstm_df_state, self.z_gates_state:z_gates_state })
                     #self.writer.add_summary(summary_str, counter)
 
                 # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
@@ -309,9 +314,7 @@ class DCGAN(object):
                 errG = self.g_loss.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
                 #errVAE = self.vae_loss.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
                 rG = self.G.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
-                summer = self.summer.eval()
                 #rZ = self.z.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
-                z_gates = self.z_gates.eval({self.t: t, self.wavs: batch_wavs, self.z: z})
                 #H4 = self.h4.eval({self.wavs: batch_wavs})
                 #bf = self.batch_flatten.eval({self.wavs: batch_wavs})
                 #brf = self.batch_reconstruct_flatten.eval({self.wavs: batch_wavs})
@@ -319,11 +322,9 @@ class DCGAN(object):
 
                 #print("H4", np.min(H4), np.max(H4))
                 #print("z", np.min(rZ), np.max(rZ))
-                print("z_gates", ["%.03f" % zg for zg in z_gates[0][:]])
                 #print("bf", np.min(bf), np.max(bf))
                 #print("brf", np.min(brf), np.max(brf))
                 print("rG", np.min(rG), np.max(rG), np.mean(rG), np.std(rG))
-                print("summer", np.min(summer), np.max(summer))
 
                 counter += 1
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss_fake %.8f, d_loss: %.8f, g_loss: %.8f vae_loss: %.8f" \
@@ -332,7 +333,7 @@ class DCGAN(object):
 
                 SAVE_COUNT=1000
                 
-                SAMPLE_COUNT=100
+                SAMPLE_COUNT=10
                 if np.mod(counter, SAMPLE_COUNT) == SAMPLE_COUNT-3:
                     stepsize = 0.03125
                     position = 0.0
@@ -345,7 +346,23 @@ class DCGAN(object):
                     X = 8
                     Y = 8
                     sample_rows = 20
-                    print("SAMPLING DISABLED")
+
+                    z =  (np.random.uniform(-1,1.0,(self.batch_size, self.z_dim)))
+                    to_plot = self.sample(t,z)
+                    plt.clf()
+                    print("to_plot", to_plot[0].shape, np.min(to_plot[0]), np.max(to_plot[0]))
+                    data = np.hstack([to_plot[0][0], to_plot[1][0], to_plot[2][0], to_plot[3][0]])
+                    print("DATA", np.shape(data))
+                    plt.plot(data)
+
+                    plt.xlim([0, LENGTH*4])
+                    plt.ylim([-2., 2.])
+                    plt.ylabel("Amplitude")
+                    plt.xlabel("Time")
+                    ## set the title  
+                    plt.title("batch")
+                    #plt.show()
+                    plt.savefig('visualize/output-'+str(counter)+'.png')
 
                     #np.random.seed(42)
                     #scale=3
@@ -413,15 +430,20 @@ class DCGAN(object):
         #wavs = np.ones((self.batch_size, Y_DIM, LENGTH)) * 40000
         #rZ = self.z.eval({self.t: t, self.wavs: wavs})
         #print("! sample z", np.min(rZ), np.max(rZ))
-        result = self.sess.run(
-            self.sampler,
+
+        if(self.sample_z_gates_state is None):
+            self.sample_z_gates_state = self.z_gates_state.eval()
+        result,z_gates_state = self.sess.run(
+            [self.sampler, self.final_z_gates_state],
             feed_dict={
                        self.t: t, 
                        self.z: z,
                        self.factory_gate: factory_gate,
                        self.killer_mean: 2.0,
-                       self.killer_stddev: 0.
+                       self.killer_stddev: 0.,
+                       self.z_gates_state: self.sample_z_gates_state,
                        }
+
         )
         return result
 
@@ -486,8 +508,8 @@ class DCGAN(object):
 
 
         
-        c1_dim=16
-        c2_dim=32
+        c1_dim=8
+        c2_dim=16
         c3_dim=64
         H = output
         H = tf.nn.dropout(H, self.keep_prob_d)
@@ -496,7 +518,7 @@ class DCGAN(object):
         H = tf.nn.dropout(H, self.keep_prob_d)
         H = tf.nn.relu(conv2d(H, c2_dim, name="d_conv2", k_w=3, k_h=3))
         H = tf.reshape(H, [self.batch_size, -1])
-        Hout = linear(H, 32, "d_h_out")
+        Hout = linear(H, 16, "d_h_out")
 
         #output = fully_connected(output, network_size, 'd_fc_1')
         #output = tf.nn.relu(output)
@@ -529,6 +551,7 @@ class DCGAN(object):
     def generator(self, y=None):
         return self.build_generator(True)
     
+    #z -> WAVELONS -> LENGTH*CHANNELS
     def build_generator(self,is_generator):
         if(not is_generator):
             tf.get_variable_scope().reuse_variables()
@@ -555,14 +578,17 @@ class DCGAN(object):
 
         def build_deconv(output,scope, fc=0, network_size=128):
             with tf.variable_scope(scope):
-                z_scaled = tf.reshape(output, [self.batch_size, 1, self.z_dim]) * \
+                z_scaled = tf.reshape(output, [self.batch_size, 1, self.z_dim*2]) * \
                                 tf.ones([WAVELONS//256, 1], dtype=tf.float32) #* scale
-                output = tf.reshape(z_scaled, [self.batch_size,  4, 4,4])
+                output = tf.reshape(z_scaled, [self.batch_size,  4, 4,8])
 
-                output = deconv2d(output, [self.batch_size, 8, 8, 2], name='g_d_2')
+                output = deconv2d(output, [self.batch_size, 8, 8, 4], name='g_d_2')
                 output = tf.nn.tanh(output)
                 output = tf.nn.dropout(output, self.keep_prob)
-                output = deconv2d(output, [self.batch_size,  16, 16,1], name='g_d_15')
+                output = deconv2d(output, [self.batch_size,  16, 16,2], name='g_d_25')
+                output = tf.nn.tanh(output)
+                output = tf.nn.dropout(output, self.keep_prob)
+                output = deconv2d(output, [self.batch_size,  32, 32,1], name='g_d_15')
                 output = tf.reshape(output, [self.batch_size, -1])
                 if(fc > 0):
                     output = tf.nn.tanh(output)
@@ -573,67 +599,51 @@ class DCGAN(object):
         def build_fc(output, scope='g_fc'):
             output= fully_connected(output, WAVELONS, scope)
             return output
+
+        # below is where we need to do MDN splitting of distribution params
+        def get_mixture_coef(output):
+          # returns the tf slices containing mdn dist params
+          # ie, eq 18 -> 23 of http://arxiv.org/abs/1308.0850
+          z_pi, z_mu1,z_sigma1,z_corr = tf.split(1, 4, output)
+
+          # process output z's into MDN paramters
+
+          # softmax all the pi's:
+          max_pi = tf.reduce_max(z_pi, 1, keep_dims=True)
+          z_pi = tf.sub(z_pi, max_pi)
+          z_pi = tf.exp(z_pi)
+          normalize_pi = tf.inv(tf.reduce_sum(z_pi, 1, keep_dims=True))
+          z_pi = tf.mul(normalize_pi, z_pi)
+
+          # exponentiate the sigmas and also make corr between -1 and 1.
+          z_sigma1 = tf.exp(z_sigma1)
+          z_corr = tf.tanh(z_corr)
+          def sample(pi, mu, sig, corr):
+              return mu*sig*sig*corr*pi*tf.random_normal([self.batch_size, int(pi.get_shape()[1])])
+          return sample(z_pi, z_mu1, z_sigma1, z_corr)
+
+
+        def get_wnn(output):
+          gaus = output
+          #gaus, trans, dil = tf.split(1, 3, output)
+          #gaus = (gaus - trans)/(dil+1e10)
+          gaus = (1-gaus)*tf.exp(-gaus/2)
+          return  gaus
+
         time = self.t
         output = self.z
-        outputs = [
-                    build_deconv(output, 'g_deconv1'),
-                    #build_deconv(output, 'g_deconv2'),
-                    #build_deconv(output, 'g_deconv2', fc=1, network_size=WAVELONS),
-                    #build_deconv(output, 'g_deconv3', fc=2, network_size=WAVELONS),
-                    #build_deconv(output, 'g_deconv4', fc=3, network_size=WAVELONS),
-                    build_deep(output, 'g_deep1', layers=3, network_size=WAVELONS),
-                    build_deep(output, 'g_deep2', layers=3, network_size=WAVELONS),
-                    #build_deep(output, 'g_deep3', layers=3, network_size=WAVELONS),
-                    #build_deep(output, 'g_deep4', layers=3, network_size=WAVELONS),
-                    #build_fc(output, scope="g_fc_1"),
-                    #build_fc(output, scope="g_fc_2"), 
-                  ]
+
+        number_gates = FACTORY_GATES
+
+        output_add, z_gates_state = lstm.z_gates(output, self.z_gates_state, self.g_cell,batch_size=self.batch_size)
+        self.final_z_gates_state = z_gates_state
+       
+        outputs = [get_wnn(output_add)]
         self.g_layers = outputs
 
-        number_gates = len(outputs)
 
-        z_gates = linear(self.z, number_gates, 'g_z_gate', stddev=0.3)
-        print("killer is", self.killer_mean, self.killer_stddev)
-        killer = tf.random_normal(z_gates.get_shape(), self.killer_mean, self.killer_stddev)#100000, stddev=100000)
-        killer= tf.greater(killer, 0)
-        killer= tf.cast(killer, tf.float32)
-        z_gates_reshape = tf.reshape(z_gates, [self.batch_size, 1, -1]) 
-        killer_reshape = tf.reshape(killer, [self.batch_size, 1, -1])
-        z_info = tf.concat(1, [z_gates_reshape, killer_reshape])
-        z_info = tf.reshape(z_info, [self.batch_size, -1])
-        #z_gates = linear(z_info, number_gates, 'g_z_gate2', stddev=0.3)
-        z_gates = linear(z_gates, number_gates, 'g_z_gate2', stddev=0.3)
-
-        outputs = tf.pack(outputs)
-
-        #z_gates = tf.square(z_gates) * killer
-        #z_gates = tf.nn.softmax(z_gates)
-    
-        killer = (killer-0.5)*16
-        killer = tf.minimum(killer, 0)
-        z_gates = tf.add(z_gates, killer)
-        #z_gates = lstm.z_gates(z_gates)
-        z_gates = tf.nn.sigmoid(z_gates)
-
-        self.z_gates = z_gates
-        # debugging, creating samples
-        f_gates = tf.convert_to_tensor(self.factory_gate, dtype=tf.float32)
-        f_gates = tf.transpose(f_gates)
-
-        z_gates = z_gates * f_gates
-
-        z_gates = tf.transpose(z_gates)
-        z_gates = tf.reshape(z_gates, [number_gates, self.batch_size, 1]) * \
-                        tf.ones([1, WAVELONS], dtype=tf.float32) #* scale
-        outputs = tf.mul(outputs, z_gates)
-        outputs = tf.unpack(outputs)
-        # outputs is now an array of tensors of [self.batch_size, WAVELONS]
-        
-        #output = tf.nn.tanh(outputs[0])*5
-        #for elem in outputs[1:]:
-        #    output = output + tf.nn.tanh(elem)*5
         output = tf.add_n(outputs)
-        print("OUTPUTS IS ", outputs)
+        output = fully_connected(output, WAVELONS, "g_fc_1")
 
         output = tf.nn.tanh(output)
         self.g_wavelons = output
